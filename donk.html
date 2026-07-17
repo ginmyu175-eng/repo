@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>동킹땅콩 🥜 - 제주 우도 땅콩</title>
+<style>
+  :root{
+    --bg:#07071c; --girder:#e2954a; --girder-dk:#8a4f1d;
+    --ladder:#57d9d4; --cream:#ffe9c7; --gold:#ffcf4d; --red:#ff5a4e;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    background:radial-gradient(circle at 50% 20%, #101033 0%, var(--bg) 65%);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-family:'Galmuri11','DungGeunMo','Courier New',monospace;
+    color:var(--cream);overflow:hidden;touch-action:none;
+  }
+  #wrap{position:relative;width:min(96vw,calc((100vh - 120px) * 0.75));}
+  canvas{
+    width:100%;display:block;background:transparent;
+    image-rendering:pixelated;image-rendering:crisp-edges;
+    border:4px solid #2a2a55;border-radius:6px;
+    box-shadow:0 0 40px rgba(255,207,77,.12), inset 0 0 60px rgba(0,0,0,.5);
+  }
+  #controls{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    width:min(96vw,520px);margin-top:12px;user-select:none;
+  }
+  .pad{display:flex;gap:8px}
+  .btn{
+    width:58px;height:58px;border-radius:12px;border:3px solid #3a3a70;
+    background:#181840;color:var(--cream);font-size:22px;font-weight:bold;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
+    box-shadow:0 4px 0 #0c0c28;user-select:none;
+  }
+  .btn:active{transform:translateY(3px);box-shadow:0 1px 0 #0c0c28}
+  #jumpBtn{width:90px;background:#5a2a10;border-color:#a35a24;font-size:15px}
+  @media (hover:hover) and (pointer:fine){ #controls{display:none} }
+
+  /* ===== 스테이지1 클리어 시 이름/전화번호 입력 폼 ===== */
+  #clearForm{
+    position:fixed; inset:0; z-index:60; display:none;
+    align-items:center; justify-content:center;
+    background:rgba(7,7,28,0.82); padding:20px;
+  }
+  #clearForm .cfBox{
+    background:#12122e; border:4px solid #ffcf4d; border-radius:14px;
+    padding:26px 28px; width:100%; max-width:340px; text-align:center;
+    box-shadow:0 0 40px rgba(255,207,77,.25);
+    font-family:'Galmuri11','DungGeunMo','Courier New',monospace; color:var(--cream);
+  }
+  #clearForm h2{ font-size:24px; color:#ffcf4d; margin-bottom:4px; }
+  #clearForm .sub{ font-size:13px; color:#57d9d4; margin-bottom:16px; }
+  #clearForm label{ display:block; text-align:left; font-size:12px; color:#ffe9c7; margin-top:12px; }
+  #clearForm input{
+    width:100%; box-sizing:border-box; margin-top:5px; padding:11px 12px;
+    font-size:16px; border:2px solid #57d9d4; border-radius:10px; outline:none;
+    font-family:inherit; color:#fff; background:#0c0c28;
+  }
+  #clearForm input:focus{ border-color:#ffcf4d; }
+  #clearForm button{
+    margin-top:18px; width:100%; padding:13px; font-size:18px; font-weight:bold;
+    border:none; border-radius:10px; background:#ff5a4e; color:#fff; cursor:pointer;
+    box-shadow:0 4px 0 #a3281f;
+  }
+  #clearForm button:active{ transform:translateY(3px); box-shadow:0 1px 0 #a3281f; }
+  #clearForm button:disabled{ background:#555; box-shadow:0 4px 0 #333; cursor:default; }
+  #cfMsg{ min-height:18px; margin-top:12px; font-size:12px; font-weight:bold; color:#57d9d4; }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="cv" width="480" height="640"></canvas></div>
+<div id="controls">
+  <div class="pad">
+    <div class="btn" data-k="left">◀</div>
+    <div class="btn" data-k="right">▶</div>
+  </div>
+  <div class="pad">
+    <div class="btn" data-k="up">▲</div>
+    <div class="btn" data-k="down">▼</div>
+    <div class="btn" id="jumpBtn" data-k="jump">점프</div>
+  </div>
+</div>
+
+<!-- 스테이지1 클리어 시 이름/전화번호 입력 -->
+<div id="clearForm">
+  <div class="cfBox">
+    <h2>🥜 스테이지 1 클리어!</h2>
+    <div class="sub">해녀님과 우도 땅콩을 지켜냈어요!</div>
+    <label>이름<input id="cfName" type="text" maxlength="20" autocomplete="off" placeholder="이름을 입력하세요"></label>
+    <label>전화번호<input id="cfPhone" type="tel" maxlength="20" autocomplete="off" placeholder="010-0000-0000"></label>
+    <button id="cfSubmit">기록하기</button>
+    <div id="cfMsg"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =========================================================================
+   ▼▼▼ 구글 스프레드시트 연동 설정 ▼▼▼
+   스테이지1을 클리어하면 이름·전화번호를 입력받아 아래 exec 주소로 전송하고
+   '이름 · 전화번호 · 게임이름' 으로 기록합니다.
+   Apps Script 배포 후 받은 웹앱 exec 주소를 아래 따옴표 안에 붙여넣으세요.
+   예)  const SHEET_URL = 'https://script.google.com/macros/s/AKfy...../exec';
+   비워두면(빈 문자열) 폼은 뜨지만 기록 전송은 건너뜁니다.
+   ========================================================================= */
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbyhfhI5AjkJL8rZ2w3K3lDBYYzu-NabJ_wbmWAyxK1QlB_uNRSfGLosNCIsozrYVE73jQ/exec';
+const GAME_NAME = '동킹땅콩';
+/* ========================================================================= */
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const W = 480, H = 640;
+
+/* ============ 스테이지 구조 (경사 철골 + 사다리) ============ */
+// 각 철골: 왼쪽끝(x1,y1) → 오른쪽끝(x2,y2). y가 클수록 낮음.
+const PLATS = [
+  {x1:0,   y1:592, x2:480, y2:572},  // 0 바닥 (왼쪽으로 굴러 퇴장)
+  {x1:40,  y1:492, x2:480, y2:472},  // 1 ← 방향
+  {x1:0,   y1:372, x2:440, y2:392},  // 2 → 방향
+  {x1:40,  y1:292, x2:480, y2:272},  // 3 ← 방향
+  {x1:0,   y1:172, x2:440, y2:192},  // 4 → 방향 (땅콩대왕 위치)
+  {x1:180, y1:100, x2:320, y2:100},  // 5 꼭대기 (해녀님 + 땅콩자루)
+];
+PLATS.forEach(p => p.dir = (p.y1 > p.y2) ? -1 : 1); // 내리막 방향
+
+const LADDERS = [
+  {x:430, lo:0, hi:1}, {x:180, lo:0, hi:1},
+  {x:80,  lo:1, hi:2}, {x:350, lo:1, hi:2},
+  {x:410, lo:2, hi:3}, {x:150, lo:2, hi:3},
+  {x:90,  lo:3, hi:4}, {x:330, lo:3, hi:4},
+  {x:250, lo:4, hi:5},
+];
+function platY(p, x){
+  const t = Math.max(0, Math.min(1, (x - p.x1) / (p.x2 - p.x1)));
+  return p.y1 + (p.y2 - p.y1) * t;
+}
+function onPlat(p, x){ return x >= p.x1 - 2 && x <= p.x2 + 2; }
+
+/* ============ 상태 ============ */
+const S = { TITLE:0, PLAY:1, DEAD:2, WIN:3, OVER:4 };
+let state = S.TITLE;
+let score = 0, hiScore = 0, lives = 3, level = 1, bonus = 5000;
+let frames = 0, stateTimer = 0, bonusTick = 0;
+let peanuts = [], popups = [], hammers = [];
+let spawnTimer = 0, kingThrow = 0;
+
+const KING = { x:58, plat:4 };
+const HAENYEO = { x:245, plat:5 };
+
+const player = {
+  x:60, footY:0, plat:0, vx:0, vy:0,
+  air:false, climbing:false, ladder:null,
+  face:1, walkT:0, hammer:0, hammerSwing:0, deadT:0,
+};
+
+/* ============ 입력 ============ */
+const keys = { left:false, right:false, up:false, down:false, jump:false };
+let jumpLatch = false;
+addEventListener('keydown', e => {
+  // 입력 폼에 타이핑 중이면 게임 키 입력 무시
+  if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+  if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key)) e.preventDefault();
+  if (e.key === 'ArrowLeft') keys.left = true;
+  if (e.key === 'ArrowRight') keys.right = true;
+  if (e.key === 'ArrowUp') keys.up = true;
+  if (e.key === 'ArrowDown') keys.down = true;
+  if (e.key === ' ') keys.jump = true;
+  if (state !== S.PLAY && (e.key === ' ' || e.key === 'Enter')) advance();
+});
+addEventListener('keyup', e => {
+  if (e.key === 'ArrowLeft') keys.left = false;
+  if (e.key === 'ArrowRight') keys.right = false;
+  if (e.key === 'ArrowUp') keys.up = false;
+  if (e.key === 'ArrowDown') keys.down = false;
+  if (e.key === ' ') keys.jump = false;
+});
+document.querySelectorAll('.btn').forEach(b => {
+  const k = b.dataset.k;
+  const on = e => { e.preventDefault(); keys[k] = true; if (state !== S.PLAY) advance(); };
+  const off = e => { e.preventDefault(); keys[k] = false; };
+  b.addEventListener('pointerdown', on);
+  b.addEventListener('pointerup', off);
+  b.addEventListener('pointerleave', off);
+});
+cv.addEventListener('pointerdown', () => { if (state !== S.PLAY) advance(); });
+
+function advance(){
+  if (state === S.TITLE) { newGame(); }
+  else if (state === S.OVER && stateTimer > 40) { state = S.TITLE; }
+}
+
+/* ============ 사운드 (WebAudio 삑삑이) ============ */
+let AC = null;
+function beep(f, d, type='square', v=0.06){
+  try{
+    AC = AC || new (window.AudioContext||window.webkitAudioContext)();
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(v, AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + d);
+    o.connect(g); g.connect(AC.destination);
+    o.start(); o.stop(AC.currentTime + d);
+  }catch(e){}
+}
+const sJump = () => { beep(520,.12); beep(760,.12); };
+const sScore = () => { beep(880,.08); beep(1320,.1); };
+const sDead = () => { beep(300,.3,'sawtooth'); beep(180,.5,'sawtooth'); };
+const sWin = () => { [523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,.18),i*130)); };
+const sSmash = () => beep(150,.15,'sawtooth',.1);
+
+/* ============ 게임 진행 ============ */
+function newGame(){
+  score = 0; lives = 3; level = 1;
+  recorded = false; hideClearForm();
+  startLevel();
+}
+function startLevel(){
+  peanuts = []; popups = []; bonus = 5000; bonusTick = 0;
+  spawnTimer = 90; kingThrow = 0;
+  hammers = [ {x:120, plat:1, taken:false}, {x:390, plat:3, taken:false} ];
+  respawn();
+  state = S.PLAY;
+}
+function respawn(){
+  player.x = 60; player.plat = 0; player.footY = platY(PLATS[0], 60);
+  player.vx = 0; player.vy = 0; player.air = false;
+  player.climbing = false; player.ladder = null;
+  player.face = 1; player.hammer = 0;
+}
+function addPopup(x, y, text, color='#ffffff'){
+  popups.push({x, y, text, t:0, color});
+}
+
+/* ============ 땅콩 (통 대신!) ============ */
+function spawnPeanut(){
+  const p4 = PLATS[4];
+  peanuts.push({
+    x: KING.x + 34, y: platY(p4, KING.x + 34) - 9,
+    plat: 4, mode:'roll', vy:0, rot:0, prevX: KING.x + 34,
+    scored:false,
+    speed: 1.7 + level * 0.25 + Math.random() * 0.3,
+  });
+}
+function updatePeanuts(){
+  const g = 0.3;
+  for (let i = peanuts.length - 1; i >= 0; i--){
+    const n = peanuts[i];
+    n.prevX = n.x;
+    if (n.mode === 'roll'){
+      const p = PLATS[n.plat];
+      n.x += p.dir * n.speed;
+      n.rot += p.dir * n.speed * 0.14;
+      n.y = platY(p, n.x) - 9;
+      // 사다리로 내려가기 (고전 방식: 확률적으로)
+      for (const L of LADDERS){
+        if (L.hi === n.plat && (n.prevX - L.x) * (n.x - L.x) <= 0){
+          if (Math.random() < 0.28){
+            n.mode = 'ladder'; n.x = L.x; n.ladder = L;
+            n.targetY = platY(PLATS[L.lo], L.x) - 9;
+            break;
+          }
+        }
+      }
+      // 철골 끝에서 낙하
+      if (n.mode === 'roll' && (n.x < p.x1 - 4 || n.x > p.x2 + 4)){
+        if (n.plat === 0){ if (n.x < -25 || n.x > W + 25) { peanuts.splice(i,1); continue; } }
+        else { n.mode = 'fall'; n.vy = 0; }
+      }
+    }
+    else if (n.mode === 'ladder'){
+      n.y += 2.2; n.rot += 0.1;
+      if (n.y >= n.targetY){
+        n.y = n.targetY; n.plat = n.ladder.lo; n.mode = 'roll'; n.scored = false;
+      }
+    }
+    else if (n.mode === 'fall'){
+      n.vy += g; n.y += n.vy;
+      for (let pi = n.plat - 1; pi >= 0; pi--){
+        const p = PLATS[pi];
+        if (onPlat(p, n.x)){
+          const gy = platY(p, n.x) - 9;
+          if (n.y >= gy){ n.y = gy; n.plat = pi; n.mode = 'roll'; n.vy = 0; n.scored = false; }
+          break;
+        }
+      }
+      if (n.y > H + 30) { peanuts.splice(i,1); continue; }
+    }
+  }
+}
+
+/* ============ 플레이어 ============ */
+function updatePlayer(){
+  const WALK = 1.7, CLIMB = 1.5, GRAV = 0.3, JUMPV = -5.4;
+
+  if (player.hammer > 0){
+    player.hammer--;
+    player.hammerSwing += 0.25;
+    if (player.hammer === 0) addPopup(player.x, player.footY - 40, '망치 끝!', '#aaa');
+  }
+
+  if (player.climbing){
+    const L = player.ladder;
+    const topY = platY(PLATS[L.hi], L.x);
+    const botY = platY(PLATS[L.lo], L.x);
+    if (keys.up) player.footY -= CLIMB;
+    if (keys.down) player.footY += CLIMB;
+    player.walkT += (keys.up || keys.down) ? 0.2 : 0;
+    if (player.footY <= topY){
+      player.footY = topY; player.plat = L.hi; player.climbing = false;
+    } else if (player.footY >= botY){
+      player.footY = botY; player.plat = L.lo; player.climbing = false;
+    }
+    return;
+  }
+
+  if (player.air){
+    player.x += player.vx;
+    player.vy += GRAV;
+    const prevFoot = player.footY;
+    player.footY += player.vy;
+    if (player.vy > 0){
+      for (let pi = PLATS.length - 1; pi >= 0; pi--){
+        const p = PLATS[pi];
+        if (!onPlat(p, player.x)) continue;
+        const gy = platY(p, player.x);
+        if (prevFoot <= gy + 4 && player.footY >= gy){
+          player.footY = gy; player.plat = pi; player.air = false;
+          player.vx = 0; player.vy = 0;
+          break;
+        }
+      }
+    }
+    if (player.footY > H + 40) killPlayer();
+    player.x = Math.max(8, Math.min(W - 8, player.x));
+    return;
+  }
+
+  // 지상
+  let mv = 0;
+  if (keys.left) mv = -1;
+  if (keys.right) mv = 1;
+  if (mv !== 0){
+    player.face = mv;
+    player.x += mv * WALK;
+    player.walkT += 0.25;
+  }
+  player.x = Math.max(8, Math.min(W - 8, player.x));
+
+  const p = PLATS[player.plat];
+  if (onPlat(p, player.x)){
+    player.footY = platY(p, player.x);
+  } else {
+    player.air = true; player.vy = 0; player.vx = mv * WALK * 0.6;
+    return;
+  }
+
+  // 사다리 타기 (망치 들고는 불가 - 고전 규칙)
+  if (player.hammer <= 0 && (keys.up || keys.down)){
+    for (const L of LADDERS){
+      if (Math.abs(player.x - L.x) > 10) continue;
+      const topY = platY(PLATS[L.hi], L.x);
+      const botY = platY(PLATS[L.lo], L.x);
+      if (keys.up && player.plat === L.lo){
+        player.climbing = true; player.ladder = L; player.x = L.x; break;
+      }
+      if (keys.down && player.plat === L.hi && Math.abs(player.footY - topY) < 6){
+        player.climbing = true; player.ladder = L; player.x = L.x;
+        player.footY = topY + 2; break;
+      }
+    }
+    if (player.climbing) return;
+  }
+
+  // 점프
+  if (keys.jump && !jumpLatch && player.hammer <= 0){
+    jumpLatch = true;
+    player.air = true; player.vy = JUMPV; player.vx = mv * WALK * 0.85;
+    sJump();
+  }
+  if (!keys.jump) jumpLatch = false;
+
+  // 망치 줍기
+  for (const h of hammers){
+    if (!h.taken && h.plat === player.plat && Math.abs(player.x - h.x) < 14){
+      h.taken = true; player.hammer = 60 * 7; player.hammerSwing = 0;
+      addPopup(player.x, player.footY - 46, '망치 겟!', '#ffcf4d');
+      beep(660,.1); beep(990,.12);
+    }
+  }
+}
+
+function killPlayer(){
+  if (state !== S.PLAY) return;
+  state = S.DEAD; stateTimer = 0; player.deadT = 0;
+  sDead();
+}
+
+/* ============ 충돌 & 점수 ============ */
+function checkCollisions(){
+  const px = player.x, foot = player.footY;
+  for (let i = peanuts.length - 1; i >= 0; i--){
+    const n = peanuts[i];
+    // 망치 스매시
+    if (player.hammer > 0){
+      const hx = px + player.face * 20;
+      const swingUp = Math.sin(player.hammerSwing) > 0;
+      const hy = swingUp ? foot - 38 : foot - 12;
+      if (Math.abs(n.x - hx) < 20 && Math.abs(n.y - hy) < 20){
+        peanuts.splice(i,1);
+        score += 300; addPopup(n.x, n.y - 14, '+300', '#ffcf4d');
+        sSmash();
+        continue;
+      }
+    }
+    // 피격
+    if (Math.abs(n.x - px) < 15 && n.y > foot - 26 && n.y < foot + 4){
+      killPlayer(); return;
+    }
+    // 점프로 넘기 +100
+    if (player.air && !n.scored && Math.abs(n.x - px) < 16 &&
+        n.y > foot && n.y - foot < 55){
+      n.scored = true; score += 100;
+      addPopup(px, foot - 30, '+100');
+      sScore();
+    }
+  }
+  // 구출 성공!
+  if (player.plat === 5 && Math.abs(px - HAENYEO.x) < 34){
+    state = S.WIN; stateTimer = 0;
+    score += bonus;
+    sWin();
+    // 스테이지1 클리어 → 이름/전화번호 입력
+    if (level === 1 && !recorded) showClearForm();
+  }
+}
+
+/* ============ 그리기: 스프라이트 ============ */
+function drawPeanutShape(x, y, rot, scale, glow){
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(rot); ctx.scale(scale, scale);
+  if (glow){ ctx.shadowColor = '#ffcf4d'; ctx.shadowBlur = 12; }
+  // 땅콩 껍질 (두 알)
+  ctx.fillStyle = '#d9a05b';
+  ctx.beginPath();
+  ctx.ellipse(-4.5, 0, 6.5, 8, 0, 0, Math.PI*2);
+  ctx.ellipse(4.5, 0, 6.5, 8, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = '#c98b45';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 3.6, 6.4, 0, 0, Math.PI*2);
+  ctx.fill();
+  // 그물 무늬
+  ctx.strokeStyle = 'rgba(138,79,29,.55)'; ctx.lineWidth = 1;
+  for (let i = -1; i <= 1; i++){
+    ctx.beginPath();
+    ctx.moveTo(-9, i*3.5); ctx.quadraticCurveTo(0, i*3.5+2, 9, i*3.5);
+    ctx.stroke();
+  }
+  ctx.beginPath(); ctx.moveTo(-5,-7); ctx.lineTo(-5,7); ctx.moveTo(5,-7); ctx.lineTo(5,7); ctx.stroke();
+  ctx.restore();
+}
+
+function drawPlayer(){
+  const {x, footY, face, climbing, air, hammer} = player;
+  ctx.save();
+  ctx.translate(x, footY);
+  if (state === S.DEAD){ ctx.rotate(player.deadT * 0.3); }
+  else ctx.scale(face, 1);
+
+  const step = Math.sin(player.walkT * 4);
+  // 다리
+  ctx.strokeStyle = '#2b4b8f'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+  if (climbing){
+    ctx.beginPath(); ctx.moveTo(-3,-10); ctx.lineTo(-4 - step*2, -1); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(3,-10); ctx.lineTo(4 + step*2, -1); ctx.stroke();
+  } else if (air){
+    ctx.beginPath(); ctx.moveTo(-2,-10); ctx.lineTo(-6,-4); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(2,-10); ctx.lineTo(6,-3); ctx.stroke();
+  } else {
+    ctx.beginPath(); ctx.moveTo(-2,-10); ctx.lineTo(-2 - step*4, -1); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(2,-10); ctx.lineTo(2 + step*4, -1); ctx.stroke();
+  }
+  // 몸통 (농부 조끼)
+  ctx.fillStyle = '#f0e0b8';
+  ctx.fillRect(-7, -22, 14, 13);
+  ctx.fillStyle = '#3f7d3a';
+  ctx.fillRect(-7, -22, 4, 13); ctx.fillRect(3, -22, 4, 13);
+  // 팔
+  ctx.strokeStyle = '#f0e0b8'; ctx.lineWidth = 4;
+  if (hammer > 0){
+    const up = Math.sin(player.hammerSwing) > 0;
+    ctx.beginPath(); ctx.moveTo(4,-18);
+    ctx.lineTo(up ? 8 : 14, up ? -30 : -14); ctx.stroke();
+    // 망치
+    ctx.save();
+    ctx.translate(up ? 9 : 16, up ? -33 : -14);
+    ctx.rotate(up ? -0.5 : 1.1);
+    ctx.fillStyle = '#8a4f1d'; ctx.fillRect(-2, -2, 4, 18);
+    ctx.fillStyle = '#c0392b'; ctx.fillRect(-8, -12, 16, 11);
+    ctx.fillStyle = '#e74c3c'; ctx.fillRect(-8, -12, 16, 4);
+    ctx.restore();
+  } else if (climbing){
+    ctx.beginPath(); ctx.moveTo(-4,-20); ctx.lineTo(-5, -28 + step*3); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(4,-20); ctx.lineTo(5, -28 - step*3); ctx.stroke();
+  } else {
+    ctx.beginPath(); ctx.moveTo(4,-19); ctx.lineTo(8 + step*2, -13); ctx.stroke();
+  }
+  // 머리
+  ctx.fillStyle = '#ffd9a8';
+  ctx.beginPath(); ctx.arc(0, -28, 7, 0, Math.PI*2); ctx.fill();
+  // 초록 모자 (밭일 모자)
+  ctx.fillStyle = '#3f7d3a';
+  ctx.beginPath(); ctx.arc(0, -31, 7.5, Math.PI, 0); ctx.fill();
+  ctx.fillRect(-1, -34, 10, 4);
+  // 눈
+  ctx.fillStyle = '#222';
+  ctx.fillRect(2, -29, 2.4, 2.6);
+  ctx.restore();
+}
+
+function drawKing(){
+  const p = PLATS[KING.plat];
+  const gy = platY(p, KING.x);
+  const bounce = Math.sin(frames * 0.06) * 2;
+  const throwing = kingThrow > 0;
+  ctx.save();
+  ctx.translate(KING.x, gy + bounce * 0.3);
+  // 팔
+  ctx.strokeStyle = '#b57834'; ctx.lineWidth = 8; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(-16, -34); ctx.lineTo(-27, -18 + bounce); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(16, -34);
+  if (throwing) ctx.lineTo(30, -52); else ctx.lineTo(27, -18 - bounce);
+  ctx.stroke();
+  // 몸통 = 거대 땅콩
+  ctx.fillStyle = '#d9a05b';
+  ctx.beginPath();
+  ctx.ellipse(0, -46, 17, 15, 0, 0, Math.PI*2); // 위 알(머리)
+  ctx.ellipse(0, -19, 20, 19, 0, 0, Math.PI*2); // 아래 알(몸)
+  ctx.fill();
+  ctx.fillStyle = '#c98b45';
+  ctx.beginPath(); ctx.ellipse(0, -33, 12, 7, 0, 0, Math.PI*2); ctx.fill();
+  // 그물 무늬
+  ctx.strokeStyle = 'rgba(138,79,29,.5)'; ctx.lineWidth = 1.5;
+  for (let i = 0; i < 3; i++){
+    ctx.beginPath(); ctx.moveTo(-16, -10 - i*8); ctx.quadraticCurveTo(0, -7 - i*8, 16, -10 - i*8); ctx.stroke();
+  }
+  // 성난 눈썹 + 눈
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(-6,-48,4,0,Math.PI*2); ctx.arc(6,-48,4,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#3a1c05';
+  ctx.beginPath(); ctx.arc(-5,-47,2,0,Math.PI*2); ctx.arc(7,-47,2,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#3a1c05'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(-10,-55); ctx.lineTo(-3,-52); ctx.moveTo(10,-55); ctx.lineTo(3,-52); ctx.stroke();
+  // 입 (으르렁)
+  ctx.beginPath(); ctx.arc(0,-40,4,0.15*Math.PI,0.85*Math.PI); ctx.stroke();
+  // 왕관
+  ctx.fillStyle = '#ffcf4d';
+  ctx.beginPath();
+  ctx.moveTo(-11,-58); ctx.lineTo(-11,-68); ctx.lineTo(-6,-61); ctx.lineTo(0,-70);
+  ctx.lineTo(6,-61); ctx.lineTo(11,-68); ctx.lineTo(11,-58); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#ff5a4e';
+  ctx.beginPath(); ctx.arc(0,-62,2,0,Math.PI*2); ctx.fill();
+  // 던지는 땅콩
+  if (throwing){
+    drawPeanutShape(34, gy > 0 ? -56 : -56, frames*0.2, 0.9, false);
+  }
+  ctx.restore();
+  // 이름표
+  ctx.fillStyle = 'rgba(255,207,77,.9)';
+  ctx.font = 'bold 10px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('땅콩대왕', KING.x, gy - 78);
+}
+
+function drawHaenyeo(){
+  const gy = PLATS[5].y1;
+  const wave = Math.sin(frames * 0.1);
+  // 땅콩 자루
+  ctx.save();
+  ctx.translate(HAENYEO.x + 42, gy);
+  ctx.fillStyle = '#e8d5a8';
+  ctx.beginPath();
+  ctx.moveTo(-14, 0); ctx.quadraticCurveTo(-17, -22, -8, -26);
+  ctx.lineTo(-6, -30) ; ctx.lineTo(6, -30); ctx.lineTo(8, -26);
+  ctx.quadraticCurveTo(17, -22, 14, 0); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#8a6a35'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-7,-28); ctx.lineTo(7,-28); ctx.stroke();
+  ctx.fillStyle = '#7a4a1a';
+  ctx.font = 'bold 8px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('우도', 0, -16);
+  ctx.fillText('땅콩', 0, -7);
+  drawPeanutShape(-4, -32, 0.4, 0.5, false);
+  drawPeanutShape(5, -33, -0.6, 0.5, false);
+  ctx.restore();
+  // 해녀님
+  ctx.save();
+  ctx.translate(HAENYEO.x, gy);
+  // 테왁 (주황 부표)
+  ctx.fillStyle = '#ff8c42';
+  ctx.beginPath(); ctx.arc(-20, -8, 8, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#c85a10'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(-20, -8, 8, 0, Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-27,-8); ctx.lineTo(-13,-8); ctx.moveTo(-20,-15); ctx.lineTo(-20,-1); ctx.stroke();
+  // 다리
+  ctx.strokeStyle = '#1a1a2e'; ctx.lineWidth = 5; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(-3,-9); ctx.lineTo(-4,0); ctx.moveTo(3,-9); ctx.lineTo(4,0); ctx.stroke();
+  // 잠수복 몸
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(-7, -22, 14, 14);
+  // 팔 (도와줘~ 흔들기)
+  ctx.strokeStyle = '#1a1a2e'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(-5,-20); ctx.lineTo(-9, -13); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(5,-20); ctx.lineTo(9 + wave*2, -30 - wave*2); ctx.stroke();
+  ctx.fillStyle = '#ffd9a8';
+  ctx.beginPath(); ctx.arc(9 + wave*2, -31 - wave*2, 2.5, 0, Math.PI*2); ctx.fill();
+  // 얼굴 + 두건
+  ctx.fillStyle = '#ffd9a8';
+  ctx.beginPath(); ctx.arc(0, -28, 6.5, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#1a1a2e';
+  ctx.beginPath(); ctx.arc(0, -30, 6.8, Math.PI*0.95, Math.PI*2.05); ctx.fill();
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-3, -29, 2, 2); ctx.fillRect(1.5, -29, 2, 2);
+  ctx.restore();
+  // 말풍선
+  if (state === S.PLAY && Math.floor(frames / 90) % 2 === 0){
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('도와줘~!', HAENYEO.x, gy - 48);
+  }
+}
+
+/* ============ 그리기: 무대 ============ */
+function drawStage(){
+  // 별 배경
+  ctx.fillStyle = 'rgba(255,255,255,.25)';
+  for (let i = 0; i < 40; i++){
+    const sx = (i * 137.5) % W, sy = (i * 89.3) % H;
+    if (Math.floor(frames/30 + i) % 7 !== 0) ctx.fillRect(sx, sy, 2, 2);
+  }
+  // 사다리
+  for (const L of LADDERS){
+    const topY = platY(PLATS[L.hi], L.x);
+    const botY = platY(PLATS[L.lo], L.x);
+    ctx.strokeStyle = '#57d9d4'; ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(L.x - 8, topY); ctx.lineTo(L.x - 8, botY);
+    ctx.moveTo(L.x + 8, topY); ctx.lineTo(L.x + 8, botY);
+    ctx.stroke();
+    ctx.lineWidth = 2;
+    for (let y = topY + 6; y < botY - 2; y += 10){
+      ctx.beginPath(); ctx.moveTo(L.x - 8, y); ctx.lineTo(L.x + 8, y); ctx.stroke();
+    }
+  }
+  // 철골 (땅콩색 거더)
+  for (const p of PLATS){
+    const seg = 26;
+    const len = Math.hypot(p.x2 - p.x1, p.y2 - p.y1);
+    const ang = Math.atan2(p.y2 - p.y1, p.x2 - p.x1);
+    ctx.save();
+    ctx.translate(p.x1, p.y1); ctx.rotate(ang);
+    ctx.fillStyle = '#b56a2a';
+    ctx.fillRect(0, 0, len, 12);
+    ctx.fillStyle = '#e2954a';
+    ctx.fillRect(0, 0, len, 3);
+    ctx.fillRect(0, 9, len, 3);
+    ctx.strokeStyle = '#7a4515'; ctx.lineWidth = 2;
+    for (let x = 0; x < len - seg; x += seg){
+      ctx.beginPath();
+      ctx.moveTo(x, 2.5); ctx.lineTo(x + seg, 9.5);
+      ctx.moveTo(x + seg, 2.5); ctx.lineTo(x, 9.5);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  // 망치 아이템
+  for (const h of hammers){
+    if (h.taken) continue;
+    const gy = platY(PLATS[h.plat], h.x);
+    const bob = Math.sin(frames * 0.1) * 2;
+    ctx.save();
+    ctx.translate(h.x, gy - 26 + bob);
+    ctx.fillStyle = '#8a4f1d'; ctx.fillRect(-2, -4, 4, 18);
+    ctx.fillStyle = '#c0392b'; ctx.fillRect(-9, -12, 18, 11);
+    ctx.fillStyle = '#e74c3c'; ctx.fillRect(-9, -12, 18, 4);
+    ctx.restore();
+  }
+}
+
+function drawHUD(){
+  ctx.textAlign = 'left';
+  ctx.font = 'bold 13px monospace';
+  ctx.fillStyle = '#ff5a4e';
+  ctx.fillText('점수', 12, 20);
+  ctx.fillStyle = '#fff';
+  ctx.fillText(String(score).padStart(6,'0'), 12, 36);
+  ctx.fillStyle = '#57d9d4';
+  ctx.fillText('최고', 120, 20);
+  ctx.fillStyle = '#fff';
+  ctx.fillText(String(Math.max(hiScore, score)).padStart(6,'0'), 120, 36);
+  ctx.fillStyle = '#ffcf4d';
+  ctx.fillText('보너스', 228, 20);
+  ctx.fillStyle = '#fff';
+  ctx.fillText(String(bonus).padStart(4,'0'), 228, 36);
+  // 단계
+  ctx.fillStyle = '#57d9d4';
+  ctx.fillText('단계', 330, 20);
+  ctx.fillStyle = '#fff';
+  ctx.fillText(String(level), 330, 36);
+  // 목숨 (작은 땅콩)
+  for (let i = 0; i < lives; i++){
+    drawPeanutShape(400 + i * 26, 26, -0.5, 0.75, false);
+  }
+  // 높이 표시 (25m 오마주 → 우도 스타일)
+  ctx.fillStyle = 'rgba(255,233,199,.5)';
+  ctx.font = 'bold 11px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText('우도봉 132m', W - 10, 92);
+}
+
+function drawPopups(){
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 13px monospace';
+  for (let i = popups.length - 1; i >= 0; i--){
+    const p = popups[i];
+    p.t++; p.y -= 0.5;
+    ctx.globalAlpha = Math.max(0, 1 - p.t / 60);
+    ctx.fillStyle = p.color;
+    ctx.fillText(p.text, p.x, p.y);
+    ctx.globalAlpha = 1;
+    if (p.t > 60) popups.splice(i, 1);
+  }
+}
+
+/* ============ 화면들 ============ */
+function drawTitle(){
+  ctx.textAlign = 'center';
+  // 큰 땅콩 데코
+  drawPeanutShape(W/2, 150, frames * 0.02, 4.5, true);
+  ctx.fillStyle = '#ffcf4d';
+  ctx.font = 'bold 52px sans-serif';
+  ctx.shadowColor = '#8a4f1d'; ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 4; ctx.shadowOffsetY = 4;
+  ctx.fillText('동킹땅콩', W/2, 270);
+  ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+  ctx.fillStyle = '#57d9d4';
+  ctx.font = 'bold 16px monospace';
+  ctx.fillText('🥜 제주 우도 땅콩 홍보 게임 🥜', W/2, 305);
+  ctx.fillStyle = '#ffe9c7';
+  ctx.font = '13px monospace';
+  ctx.fillText('바닷바람 맞고 자란 고소함, 우도 땅콩!', W/2, 332);
+
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 14px monospace';
+  ctx.fillText('― 조작법 ―', W/2, 400);
+  ctx.font = '13px monospace';
+  ctx.fillStyle = '#cfcfe8';
+  ctx.fillText('← → : 이동      ↑ ↓ : 사다리', W/2, 428);
+  ctx.fillText('스페이스 : 점프 (땅콩 넘으면 +100점)', W/2, 452);
+  ctx.fillText('망치를 잡으면 땅콩을 깰 수 있어요 +300점', W/2, 476);
+  ctx.fillText('꼭대기의 해녀님과 땅콩 자루를 지켜주세요!', W/2, 500);
+
+  if (Math.floor(frames / 30) % 2 === 0){
+    ctx.fillStyle = '#ffcf4d';
+    ctx.font = 'bold 17px monospace';
+    ctx.fillText('▶ 스페이스 또는 화면을 눌러 시작 ◀', W/2, 566);
+  }
+  if (hiScore > 0){
+    ctx.fillStyle = '#57d9d4';
+    ctx.font = '12px monospace';
+    ctx.fillText('최고 기록: ' + hiScore, W/2, 600);
+  }
+}
+
+function drawWin(){
+  ctx.fillStyle = 'rgba(0,0,0,.55)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffcf4d';
+  ctx.font = 'bold 32px sans-serif';
+  ctx.fillText('구출 성공! ♥', W/2, 250);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 15px monospace';
+  ctx.fillText('제주 우도 땅콩을 지켜냈어요!', W/2, 295);
+  ctx.fillStyle = '#57d9d4';
+  ctx.font = '13px monospace';
+  ctx.fillText('작지만 옹골찬 고소함 ― 우도 땅콩 🥜', W/2, 322);
+  ctx.fillStyle = '#ffe9c7';
+  ctx.fillText('보너스 +' + bonus + '점!', W/2, 352);
+  drawPeanutShape(W/2 - 90, 250, -0.4, 2, true);
+  drawPeanutShape(W/2 + 90, 250, 0.4, 2, true);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 14px monospace';
+  ctx.fillText('다음 단계: ' + (level + 1) + ' (더 빨라져요!)', W/2, 410);
+}
+
+function drawGameOver(){
+  ctx.fillStyle = 'rgba(0,0,0,.6)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ff5a4e';
+  ctx.font = 'bold 40px sans-serif';
+  ctx.fillText('게임 오버', W/2, 260);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 16px monospace';
+  ctx.fillText('점수: ' + score, W/2, 310);
+  if (score >= hiScore && score > 0){
+    ctx.fillStyle = '#ffcf4d';
+    ctx.fillText('★ 신기록! ★', W/2, 340);
+  }
+  ctx.fillStyle = '#57d9d4';
+  ctx.font = '13px monospace';
+  ctx.fillText('아쉬움은 고소한 우도 땅콩 한 줌으로 달래요 🥜', W/2, 385);
+  if (stateTimer > 40 && Math.floor(frames / 30) % 2 === 0){
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 15px monospace';
+    ctx.fillText('스페이스 또는 화면을 눌러 다시 시작', W/2, 440);
+  }
+}
+
+/* ============ 스테이지1 클리어: 이름/전화번호 → 스프레드시트 ============ */
+const clearForm = document.getElementById('clearForm');
+const cfName    = document.getElementById('cfName');
+const cfPhone   = document.getElementById('cfPhone');
+const cfSubmit  = document.getElementById('cfSubmit');
+const cfMsg     = document.getElementById('cfMsg');
+let recorded = false;   // 기록 전송 완료 여부(중복 방지)
+let formOpen = false;   // 폼 표시 중 여부
+
+function showClearForm(){
+  formOpen = true;
+  cfName.value = ''; cfPhone.value = ''; cfMsg.textContent = '';
+  cfSubmit.disabled = false; cfSubmit.textContent = '기록하기';
+  cfName.disabled = false; cfPhone.disabled = false;
+  clearForm.style.display = 'flex';
+  setTimeout(() => cfName.focus(), 40);
+}
+function hideClearForm(){
+  clearForm.style.display = 'none';
+  formOpen = false;
+  if (document.activeElement) document.activeElement.blur();
+}
+function submitClearRecord(){
+  if (recorded) return;
+  const name  = cfName.value.trim();
+  const phone = cfPhone.value.trim();
+  if (!name || !phone){ cfMsg.style.color = '#ff5a4e'; cfMsg.textContent = '이름과 전화번호를 모두 입력하세요.'; return; }
+
+  recorded = true;
+  cfSubmit.disabled = true; cfName.disabled = true; cfPhone.disabled = true;
+
+  if (!SHEET_URL || SHEET_URL.indexOf('http') !== 0){
+    cfMsg.style.color = '#ffcf4d'; cfMsg.textContent = '(SHEET_URL 미설정 - 기록 전송 안 함)';
+    finishClearForm(); return;
+  }
+
+  cfMsg.style.color = '#57d9d4'; cfMsg.textContent = '기록 전송 중...';
+  try{
+    fetch(SHEET_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ name, phone, game: GAME_NAME })
+    })
+    .then(() => { cfMsg.style.color = '#7ddc5f'; cfMsg.textContent = '기록되었습니다!'; finishClearForm(); })
+    .catch(() => { cfMsg.style.color = '#ff5a4e'; cfMsg.textContent = '전송 실패 - 네트워크를 확인하세요.'; finishClearForm(); });
+  }catch(e){ cfMsg.style.color = '#ff5a4e'; cfMsg.textContent = '전송 오류'; finishClearForm(); }
+}
+function finishClearForm(){
+  setTimeout(hideClearForm, 1400);   // 폼 닫으면 다음 단계로 진행
+}
+cfSubmit.addEventListener('click', submitClearRecord);
+[cfName, cfPhone].forEach(inp => {
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); submitClearRecord(); } });
+});
+
+/* ============ 메인 루프 ============ */
+function tick(){
+  frames++;
+  ctx.clearRect(0, 0, W, H);
+
+  if (state === S.TITLE){
+    drawTitle();
+  }
+  else {
+    if (state === S.PLAY){
+      // 스폰 타이밍
+      spawnTimer--;
+      if (spawnTimer <= 0){
+        kingThrow = 30;
+        spawnTimer = Math.max(70, 170 - level * 18) + Math.random() * 50;
+      }
+      if (kingThrow > 0){
+        kingThrow--;
+        if (kingThrow === 0) spawnPeanut();
+      }
+      // 보너스 감소
+      bonusTick++;
+      if (bonusTick >= 150){ bonusTick = 0; bonus = Math.max(0, bonus - 100); }
+
+      updatePlayer();
+      updatePeanuts();
+      checkCollisions();
+    }
+    else if (state === S.DEAD){
+      stateTimer++;
+      player.deadT++;
+      player.footY -= (stateTimer < 15) ? 1 : -2;
+      updatePeanuts();
+      if (stateTimer > 80){
+        lives--;
+        if (lives <= 0){
+          hiScore = Math.max(hiScore, score);
+          state = S.OVER; stateTimer = 0;
+        } else {
+          peanuts = []; respawn(); state = S.PLAY;
+        }
+      }
+    }
+    else if (state === S.WIN){
+      stateTimer++;
+      if (stateTimer > 220 && !formOpen){   // 폼 입력 중엔 대기
+        level++;
+        hiScore = Math.max(hiScore, score);
+        startLevel();
+      }
+    }
+    else if (state === S.OVER){
+      stateTimer++;
+    }
+
+    drawStage();
+    drawHaenyeo();
+    drawKing();
+    for (const n of peanuts) drawPeanutShape(n.x, n.y, n.rot, 1, false);
+    if (state !== S.OVER) drawPlayer();
+    drawPopups();
+    drawHUD();
+
+    if (state === S.WIN) drawWin();
+    if (state === S.OVER) drawGameOver();
+  }
+  requestAnimationFrame(tick);
+}
+respawn();
+tick();
+</script>
+</body>
+</html>

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>웹캠 감귤 페이스 필터 📸</title>
+<link rel="stylesheet" href="../assets/style.css" />
+<style>
+  .stage { max-width: 720px; margin: 0 auto; }
+  .cam-wrap {
+    position: relative; width: 100%; aspect-ratio: 4/3;
+    background: #1a1208; border-radius: 20px; overflow: hidden;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: var(--shadow);
+  }
+  #video, #overlay, #snap { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  #video { transform: scaleX(-1); }
+  #overlay { transform: scaleX(-1); pointer-events:none; }
+  #snap { display:none; z-index:5; }
+  .cam-placeholder { color:#ffcf8f; text-align:center; padding:20px; }
+  .cam-placeholder .big { font-size:56px; }
+  .filters { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin:18px 0; }
+  .fbtn {
+    border:2px solid #ffe0bf; background:#fffdfa; cursor:pointer; font-family:inherit;
+    font-weight:800; font-size:14px; padding:10px 16px; border-radius:14px; color:var(--ink);
+    display:flex; align-items:center; gap:6px; transition:.15s;
+  }
+  .fbtn:hover { border-color: var(--orange); }
+  .fbtn.on { background: linear-gradient(135deg,var(--tangerine),var(--orange-deep)); color:#fff; border-color:transparent; }
+  .row { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:6px; }
+  .note { text-align:center; color:var(--ink-soft); font-size:13.5px; margin-top:14px; }
+  .badge-live { position:absolute; top:12px; left:12px; z-index:6; background:#e53935; color:#fff; font-size:12px; font-weight:800; padding:4px 10px; border-radius:999px; display:none; }
+  .badge-live::before{ content:"●"; margin-right:5px; animation:blink 1s infinite; }
+  @keyframes blink{50%{opacity:.3}}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="logo" href="../index.html"><span class="dot"></span>감귤 체험존</a>
+    <a class="back" href="../index.html">← 메인으로</a>
+  </div>
+
+  <header class="page-head">
+    <div class="emoji">📸</div>
+    <h1>웹캠 감귤 페이스 필터</h1>
+    <p>웹캠으로 얼굴을 인식해 귤 모자를 씌우고 볼을 주황빛으로! 캡처해서 저장하세요</p>
+  </header>
+
+  <main class="wrap stage">
+    <div class="card">
+      <div class="cam-wrap" id="camWrap">
+        <span class="badge-live" id="live">LIVE</span>
+        <div class="cam-placeholder" id="ph">
+          <div class="big">📷</div>
+          <p>웹캠을 켜서 감귤 필터를 체험해보세요!<br/><small>* 브라우저에서 카메라 권한을 허용해 주세요.</small></p>
+        </div>
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="overlay"></canvas>
+        <canvas id="snap"></canvas>
+      </div>
+
+      <div class="filters" id="filters">
+        <button class="fbtn on" data-f="hat">🧢 귤 모자</button>
+        <button class="fbtn on" data-f="cheek">🟠 주황 볼</button>
+        <button class="fbtn" data-f="glasses">🕶️ 잎사귀 안경</button>
+        <button class="fbtn" data-f="rain">🍊 귤 비</button>
+      </div>
+
+      <div class="row">
+        <button class="btn" id="startBtn" onclick="startCam()">🎥 웹캠 켜기</button>
+        <button class="btn leaf hidden" id="snapBtn" onclick="capture()">📸 사진 찍기</button>
+        <button class="btn ghost hidden" id="retakeBtn" onclick="retake()">↩️ 다시 찍기</button>
+        <button class="btn hidden" id="saveBtn" onclick="saveImg()">💾 저장하기</button>
+      </div>
+
+      <p class="note" id="note">
+        얼굴 자동인식이 지원되는 브라우저(크롬 등)에서는 얼굴 위치에 맞춰 필터가 따라다녀요.<br/>
+        미지원 시 화면 중앙 기준으로 필터가 적용됩니다.
+      </p>
+    </div>
+  </main>
+
+  <footer class="site">🍊 제주 감귤 체험존 · 웹캠 감귤 페이스 필터</footer>
+
+  <script src="../assets/common.js"></script>
+  <script>
+    const video = document.getElementById('video');
+    const overlay = document.getElementById('overlay');
+    const octx = overlay.getContext('2d');
+    const snap = document.getElementById('snap');
+    let stream = null, running = false, raf = null;
+    let detector = null, lastFace = null, tick = 0;
+    const active = { hat:true, cheek:true, glasses:false, rain:false };
+
+    // 필터 토글
+    document.querySelectorAll('.fbtn').forEach(b=>{
+      b.onclick = ()=>{ const f=b.dataset.f; active[f]=!active[f]; b.classList.toggle('on', active[f]); };
+    });
+
+    async function startCam(){
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'user', width:640, height:480 }, audio:false });
+        video.srcObject = stream;
+        await video.play();
+        document.getElementById('ph').style.display='none';
+        document.getElementById('live').style.display='block';
+        document.getElementById('startBtn').classList.add('hidden');
+        document.getElementById('snapBtn').classList.remove('hidden');
+        sizeCanvas();
+        // 얼굴 인식기 준비 (지원 시)
+        if ('FaceDetector' in window) {
+          try { detector = new FaceDetector({ fastMode:true, maxDetectedFaces:1 }); } catch(e){ detector=null; }
+        }
+        running = true;
+        loop();
+      } catch(e){
+        toast('카메라를 열 수 없어요. 권한을 확인해주세요.');
+        document.getElementById('ph').innerHTML = '<div class="big">🚫</div><p>카메라 접근이 거부되었어요.<br/>브라우저 주소창의 카메라 권한을 허용으로 바꿔주세요.</p>';
+      }
+    }
+
+    function sizeCanvas(){
+      overlay.width = video.videoWidth || 640;
+      overlay.height = video.videoHeight || 480;
+      snap.width = overlay.width; snap.height = overlay.height;
+    }
+
+    async function loop(){
+      if(!running) return;
+      tick++;
+      // 얼굴 인식은 매 8프레임마다
+      if (detector && tick % 8 === 0){
+        try {
+          const faces = await detector.detect(video);
+          if (faces && faces[0]) lastFace = faces[0].boundingBox;
+        } catch(e){}
+      }
+      draw(octx, false);
+      raf = requestAnimationFrame(loop);
+    }
+
+    // 얼굴 박스 (인식값 or 중앙 기본)
+    function faceBox(){
+      const W = overlay.width, H = overlay.height;
+      if (lastFace) {
+        // video는 좌우반전 표시되지만 detect는 원본 좌표 → overlay도 반전되어 있으므로 원본좌표 사용 OK
+        return { x:lastFace.x, y:lastFace.y, w:lastFace.width, h:lastFace.height };
+      }
+      const w = W*0.42, h = H*0.55;
+      return { x:(W-w)/2, y:(H-h)/2 - H*0.03, w, h };
+    }
+
+    function draw(c, forSnap){
+      const W = overlay.width, H = overlay.height;
+      c.clearRect(0,0,W,H);
+      const f = faceBox();
+      const cx = f.x + f.w/2, cy = f.y + f.h/2;
+
+      // 주황 볼
+      if (active.cheek){
+        c.save(); c.globalAlpha = 0.45; c.globalCompositeOperation='multiply';
+        const r = f.w*0.13;
+        for (const dx of [-f.w*0.26, f.w*0.26]){
+          const g = c.createRadialGradient(cx+dx, cy+f.h*0.12, 0, cx+dx, cy+f.h*0.12, r);
+          g.addColorStop(0,'#ff8c1a'); g.addColorStop(1,'rgba(255,140,26,0)');
+          c.fillStyle=g;
+          c.beginPath(); c.arc(cx+dx, cy+f.h*0.12, r, 0, Math.PI*2); c.fill();
+        }
+        c.restore();
+      }
+
+      // 잎사귀 안경
+      if (active.glasses){
+        c.save();
+        c.font = `${f.w*0.7}px serif`;
+        c.textAlign='center'; c.textBaseline='middle';
+        // 반전 텍스트 보정
+        c.translate(cx, cy - f.h*0.08);
+        c.scale(-1,1);
+        c.fillText('🕶️', 0, 0);
+        c.restore();
+      }
+
+      // 귤 모자
+      if (active.hat){
+        c.save();
+        c.translate(cx, f.y - f.h*0.02);
+        c.scale(-1,1);
+        c.font = `${f.w*0.85}px serif`;
+        c.textAlign='center'; c.textBaseline='middle';
+        c.fillText('🍊', 0, 0);
+        // 잎
+        c.font = `${f.w*0.4}px serif`;
+        c.fillText('🍃', f.w*0.12, -f.h*0.22);
+        c.restore();
+      }
+
+      // 귤 비 (움직이는 배경 이펙트)
+      if (active.rain){
+        c.save();
+        c.font = '28px serif';
+        for (let i=0;i<rainDrops.length;i++){
+          const d = rainDrops[i];
+          c.globalAlpha = 0.85;
+          c.fillText('🍊', d.x, d.y);
+          if(!forSnap){ d.y += d.v; if (d.y > H+20){ d.y=-20; d.x=Math.random()*W; } }
+        }
+        c.restore();
+      }
+    }
+
+    const rainDrops = Array.from({length:14}, ()=>({ x:Math.random()*640, y:Math.random()*480, v:1.5+Math.random()*2.5 }));
+
+    function capture(){
+      const c = snap.getContext('2d');
+      // 좌우반전으로 영상 그리기 (미리보기와 동일하게)
+      c.save(); c.translate(snap.width,0); c.scale(-1,1);
+      c.drawImage(video, 0,0, snap.width, snap.height);
+      c.restore();
+      // 필터도 반전 적용 (overlay가 CSS로 반전되어 보이므로 동일 처리)
+      c.save(); c.translate(snap.width,0); c.scale(-1,1);
+      draw(c, true);
+      c.restore();
+      // 워터마크
+      c.fillStyle='rgba(242,116,12,.9)'; c.font='bold 22px sans-serif'; c.textAlign='right';
+      c.fillText('🍊 제주 감귤 체험존', snap.width-16, snap.height-18);
+
+      running = false; cancelAnimationFrame(raf);
+      snap.style.display='block';
+      document.getElementById('snapBtn').classList.add('hidden');
+      document.getElementById('retakeBtn').classList.remove('hidden');
+      document.getElementById('saveBtn').classList.remove('hidden');
+      document.getElementById('live').style.display='none';
+    }
+
+    function retake(){
+      snap.style.display='none';
+      document.getElementById('retakeBtn').classList.add('hidden');
+      document.getElementById('saveBtn').classList.add('hidden');
+      document.getElementById('snapBtn').classList.remove('hidden');
+      document.getElementById('live').style.display='block';
+      running = true; loop();
+    }
+
+    function saveImg(){
+      downloadDataURL(snap.toDataURL('image/png'), '감귤필터_' + Date.now() + '.png');
+    }
+
+    window.addEventListener('beforeunload', ()=>{ if(stream) stream.getTracks().forEach(t=>t.stop()); });
+  </script>
+</body>
+</html>

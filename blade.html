@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>THE LOST BLADE — 제주 어드벤처</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden;
+    font-family:'Courier New',monospace;display:flex;align-items:center;justify-content:center}
+  #wrap{position:relative;image-rendering:pixelated}
+  canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;
+    background:#000;box-shadow:0 0 0 4px #111,0 0 40px rgba(0,0,0,.9)}
+  #help{position:fixed;bottom:8px;left:50%;transform:translateX(-50%);
+    color:#7c7c7c;font-size:12px;letter-spacing:.05em;text-align:center;white-space:nowrap}
+  #help b{color:#4cc8fc}
+  /* 클리어 시 이름/전화번호 입력 폼 */
+  #clearForm{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    display:none;flex-direction:column;gap:10px;z-index:10;
+    background:#101038;border:3px solid #f8b800;padding:20px 22px;
+    box-shadow:0 0 0 3px #000,0 0 24px rgba(0,0,0,.8);
+    font-family:'Courier New',monospace;color:#fcfcfc;min-width:230px}
+  #clearForm h2{margin:0 0 2px;font-size:15px;color:#ffd21e;text-align:center;letter-spacing:.03em}
+  #clearForm p{margin:0;font-size:11px;color:#8cf88c;text-align:center}
+  #clearForm label{font-size:11px;color:#a8c8ff}
+  #clearForm input{width:100%;box-sizing:border-box;padding:7px 8px;margin-top:3px;
+    background:#000;border:2px solid #4cc8fc;color:#fcfcfc;
+    font-family:'Courier New',monospace;font-size:13px;outline:none}
+  #clearForm input:focus{border-color:#ffd21e}
+  #clearForm button{margin-top:6px;padding:9px;cursor:pointer;
+    background:#f8b800;border:none;color:#101038;font-weight:bold;
+    font-family:'Courier New',monospace;font-size:13px;letter-spacing:.05em}
+  #clearForm button:hover{background:#ffd21e}
+  #clearForm button:disabled{background:#666;color:#333;cursor:default}
+  #cfMsg{font-size:11px;text-align:center;min-height:14px;color:#7cc8fc}
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="c" width="256" height="240"></canvas></div>
+<div id="clearForm">
+  <h2>제주의 전설 클리어!</h2>
+  <p>이름과 전화번호를 입력하세요</p>
+  <label>이름<input id="cfName" type="text" maxlength="20" autocomplete="off"></label>
+  <label>전화번호<input id="cfPhone" type="tel" maxlength="20" autocomplete="off"></label>
+  <button id="cfSubmit">기록하기</button>
+  <div id="cfMsg"></div>
+</div>
+<div id="help">이동 <b>방향키 / WASD</b> · 공격 <b>Z / J</b> · 시작·확인 <b>Enter</b></div>
+
+<script>
+'use strict';
+/* =========================================================================
+   THE LOST BLADE — 1986 젤다의 전설(NES) 오마주 데모
+   순수 캔버스 2D. 스프라이트는 전부 사각형으로 직접 그린 오리지널 아트.
+   ========================================================================= */
+
+/* =========================================================================
+   ▼▼▼ 구글 스프레드시트 연동 설정 ▼▼▼
+   게임을 클리어하면 이름·전화번호를 입력받아 아래 exec 주소로 전송하고,
+   스프레드시트에 '이름 · 전화번호 · 제주의 전설 클리어' 로 기록합니다.
+   아래 따옴표 안에 Apps Script 배포 후 받은 웹앱 exec 주소를 붙여넣으세요.
+   예)  const SHEET_URL = 'https://script.google.com/macros/s/AKfy...../exec';
+   비워두면(빈 문자열) 폼은 뜨지만 기록 전송은 건너뜁니다.
+   ========================================================================= */
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbyhfhI5AjkJL8rZ2w3K3lDBYYzu-NabJ_wbmWAyxK1QlB_uNRSfGLosNCIsozrYVE73jQ/exec';
+/* ========================================================================= */
+
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+// --- 화면 스케일 (정수 배율로 창에 맞춤) ---
+function resize(){
+  const s = Math.max(1, Math.floor(Math.min(innerWidth/256, innerHeight/248)));
+  cv.style.width = 256*s+'px'; cv.style.height = 240*s+'px';
+}
+addEventListener('resize', resize); resize();
+
+// --- 상수 ---
+const TILE=16, COLS=16, ROWS=11;
+const PLAYW=COLS*TILE, PLAYH=ROWS*TILE; // 256 x 176
+const HUD=64;                            // 상단 HUD
+const PY=HUD;                            // 플레이필드 y 오프셋
+
+// --- 팔레트 (제주도 오버월드 느낌) ---
+const C = {
+  // 제주 들판(잔디)
+  ground:'#5ea832', grassL:'#7cc84a', grassD:'#3d7d22',
+  // 흙길 / 산책로
+  sand:'#dcc888', sandL:'#efe0aa',
+  // 귤나무
+  treeD:'#1f6b2a', treeL:'#3fa447', trunk:'#6e4718', tangerine:'#ff9d1c', tangerineL:'#ffc766',
+  // 현무암(제주 검은 돌)
+  rock:'#3c3c3c', rockL:'#585858', rockD:'#1c1c1c',
+  // 제주 바다
+  waterD:'#166fb0', waterL:'#54c0e8',
+  // 절벽 / 오름
+  mtn:'#37342f', mtnD:'#201e1a', mtnMoss:'#4a7c2a',
+  // 유채꽃
+  canola:'#ffd21e', canolaD:'#e0a800',
+  black:'#000000', white:'#fcfcfc',
+  tunic:'#00a800', tunicD:'#007000', skin:'#fcb888',
+  red:'#f83800', heartE:'#4c1000',
+  blade:'#f0f0f0', hilt:'#f8b800',
+  rupee:'#40c840', rupeeL:'#a8f0a8',
+  enemy:'#ff922b', enemyB:'#3858f8', shot:'#ffce7a',
+  oldman:'#c0c0c0', robe:'#c02020', flame:'#f88818',
+  // 몬스터
+  gyul:'#ff922b', gyulD:'#e06b00', gyulLeaf:'#3fa447',
+  harbang:'#8a8a8a', harbangD:'#5c5c5c', harbangL:'#a8a8a8',
+};
+
+// --- 입력 ---
+const keys={};
+const DOWN=e=>{
+  // 입력 폼에 타이핑 중일 땐 게임 키 입력을 무시(글자 입력 우선)
+  const ae=document.activeElement;
+  if(ae && ae.tagName==='INPUT') return;
+  const k=e.key.toLowerCase();
+  keys[k]=true;
+  if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key.toLowerCase())) e.preventDefault();
+  if(k==='enter') handleConfirm();
+  if((k==='z'||k==='j') ) handleAttack();
+};
+addEventListener('keydown',DOWN);
+addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+
+// --- 사운드 (제네릭 비프. 원곡은 사용하지 않음) ---
+let AC=null;
+function snd(f,d=.09,type='square',g=.09){
+  try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+    const o=AC.createOscillator(),v=AC.createGain();
+    o.type=type;o.frequency.value=f;v.gain.value=g;o.connect(v);v.connect(AC.destination);
+    o.start();v.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+d);o.stop(AC.currentTime+d);
+  }catch(e){}
+}
+const sfxSword=()=>snd(760,.07,'square',.06);
+const sfxBeam =()=>{snd(900,.05,'square',.05);setTimeout(()=>snd(1200,.05,'square',.04),40);};
+const sfxHit  =()=>snd(180,.12,'sawtooth',.09);
+const sfxHurt =()=>snd(140,.18,'sawtooth',.12);
+const sfxItem =()=>{[600,800,1000,1300].forEach((f,i)=>setTimeout(()=>snd(f,.12,'triangle',.09),i*90));};
+const sfxRupee=()=>{snd(1000,.05,'square',.05);setTimeout(()=>snd(1400,.06,'square',.05),50);};
+
+/* =========================================================================
+   오버월드 맵  (3x3 스크린, 각 스크린 16x11 타일)
+   기호: .=풀  T=나무  R=바위  W=물  M=산  C=동굴  S=모랫길
+   ========================================================================= */
+const SCREENS = {
+  '1,1': { // 시작 스크린 — 동굴 입구 + 오리지널 첫 화면 오마주
+    t:[
+      'MMMMMM.MM.MMMMMM',
+      'MMMMM..C..MMMMMM',
+      'T....M.SM.M....T',
+      'T......S.......T',
+      '.....R.S..R.....',
+      '..WW...S........',
+      '.WWWW..S....R...',
+      '..WW...S.......T',
+      'T......S....T..T',
+      'T..T...S...T...T',
+      '.......S........',
+    ],
+    e:[['oct',3,4],['oct',11,6]],
+  },
+  '1,0': { // 북 — 숲과 산
+    t:[
+      'MMMMMMMMMMMMMMMM',
+      'MM..........MMMM',
+      'T....T....T....T',
+      '...R........R...',
+      'T......RR......T',
+      '....T.......T...',
+      'T....R....R....T',
+      '...T........T...',
+      'T......SS......T',
+      'T..R...SS...R..T',
+      '.......SS.......',
+    ],
+    e:[['oct',5,3],['oct',10,5],['moblin',8,4]],
+  },
+  '1,2': { // 남 — 큰 연못
+    t:[
+      '.......S........',
+      'T......S.......T',
+      'T....R.S..R....T',
+      '...WWWWWWWWWW...',
+      '..WWWWWWWWWWWW..',
+      '..WWWW....WWWW..',
+      '..WWWWWWWWWWWW..',
+      '...WWWWWWWWWW...',
+      'T....R....R....T',
+      'T..T........T..T',
+      'T..............T',
+    ],
+    e:[['oct',2,9],['oct',13,9]],
+  },
+  '2,1': { // 동 — 바위밭
+    t:[
+      'MMM.......MMMMMM',
+      'MM.....R.....MMM',
+      'T...R......R...M',
+      '.......RR.......',
+      'T..R.......R...M',
+      '......R.R.......',
+      'T....R...R.R...M',
+      '...R.......R....',
+      'T.....R.R.....RM',
+      'T..R.......R..MM',
+      'MMM.........MMMM',
+    ],
+    e:[['moblin',5,3],['oct',10,7],['moblin',8,8]],
+  },
+  '0,1': { // 서 — 나무 미로 (통로 확보: 오른쪽 입구 + 가운데 가로 통로)
+    t:[
+      'MMMMMM....MMMMMM',
+      'T....T....T....T',
+      'T.TT.T.TT.T.TT.T',
+      'T....T....T.....',
+      'T.TT...TT...TT.T',
+      '................',
+      'T.TT...TT...TT.T',
+      'T....T....T.....',
+      'T.TT.T.TT.T.TT.T',
+      'T....T....T....T',
+      'MMMMMM....MMMMMM',
+    ],
+    e:[['oct',7,5],['oct',3,3],['oct',12,7]],
+  },
+};
+const SOLID = {'T':1,'R':1,'W':1,'M':1};
+
+// --- 동굴 내부 상태 ---
+const CAVE = { fromScreen:'1,1', fromTile:[7,1] };
+
+/* =========================================================================
+   게임 상태
+   ========================================================================= */
+const G = {
+  mode:'title',          // title | play | scroll | cave | over
+  cx:1, cy:1,            // 현재 스크린 좌표
+  link:{ x:7*TILE, y:9*TILE, dir:'up', w:14,h:14,
+         atk:0, hp:6, maxhp:6, inv:0, hasSword:false, spd:1.4 },
+  rupees:0, keys:0, bombs:0,
+  enemies:[], shots:[], drops:[], beams:[],
+  scroll:null,           // 전환 애니메이션 데이터
+  cave:{ gaveSword:false, msg:0 },
+  t:0,                    // 프레임 카운터
+  over:0,
+  screenState:{},         // 스크린별 몬스터 상태 저장(부활 방지)
+  totalEnemies:0,         // 전체 몬스터 수
+  killedEnemies:0,        // 처치한 몬스터 수
+  recorded:false,         // 클리어 기록 전송 여부(중복 방지)
+  formOpen:false,         // 이름/전화번호 입력 폼 표시 여부
+};
+
+function curScreen(){ return SCREENS[G.cx+','+G.cy]; }
+
+function loadEnemies(){
+  G.shots.length=0; G.drops.length=0; G.beams.length=0;
+  const key=G.cx+','+G.cy;
+  // 이미 방문한 스크린이면 저장된(살아남은) 몬스터를 그대로 복원 → 부활 방지
+  if(G.screenState[key]){
+    G.enemies = G.screenState[key];
+    return;
+  }
+  // 첫 방문: 맵 정의로부터 몬스터 생성 후 저장
+  G.enemies = [];
+  const s=curScreen();
+  if(s&&s.e){
+    for(const [type,tx,ty] of s.e){
+      G.enemies.push(makeEnemy(type, tx*TILE, ty*TILE));
+    }
+  }
+  G.screenState[key]=G.enemies;
+}
+function makeEnemy(type,x,y){
+  // oct → 귤 몬스터, moblin → 돌하르방
+  if(type==='oct') return {type,x,y,w:14,h:14,dir:pick(['up','down','left','right']),hp:1,mt:0,st:60,shootT:R(40,120),color:C.gyul,spd:.75};
+  if(type==='moblin') return {type,x,y,w:14,h:14,dir:pick(['up','down','left','right']),hp:2,mt:0,st:80,shootT:R(60,140),color:C.harbang,spd:.45};
+}
+
+/* =========================================================================
+   유틸
+   ========================================================================= */
+function R(a,b){return a+Math.random()*(b-a);}
+function pick(a){return a[Math.floor(Math.random()*a.length)];}
+function clamp(v,a,b){return v<a?a:v>b?b:v;}
+function tileAt(px,py){
+  const s=curScreen(); if(!s) return '.';
+  const tx=Math.floor(px/TILE), ty=Math.floor(py/TILE);
+  if(tx<0||tx>=COLS||ty<0||ty>=ROWS) return '.';
+  return s.t[ty][tx];
+}
+function solidAt(px,py){ return !!SOLID[tileAt(px,py)]; }
+function boxSolid(x,y,w,h){
+  return solidAt(x+2,y+2)||solidAt(x+w-2,y+2)||solidAt(x+2,y+h-2)||solidAt(x+w-2,y+h-2);
+}
+function rectHit(a,b){
+  return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
+}
+
+/* ---- 이동/충돌 (벽끼임 방지) ----
+   각 축을 개별 이동하되, 벽에 부딪히면 픽셀 단위로 벽면에 "딱" 붙이고,
+   모서리가 살짝 어긋나 막힌 경우엔 부드럽게 미끄러지도록 정렬한다. */
+function slideAssist(fixed, moving){          // 어긋난 위치를 타일 격자에 정렬해 틈을 찾음
+  const g = Math.round(moving/TILE)*TILE;
+  const d = g - moving;
+  return (Math.abs(d)<=6) ? g : null;
+}
+function moveEntity(o, dx, dy){
+  // --- X축 ---
+  if(dx){
+    const nx = o.x + dx;
+    if(!boxSolid(nx, o.y, o.w, o.h)){
+      o.x = nx;
+    } else {
+      const gy = slideAssist(o.x, o.y);        // 위/아래로 살짝 밀어 통과 시도
+      if(gy!==null && gy!==o.y && !boxSolid(nx, gy, o.w, o.h)){
+        o.y = gy; o.x = nx;
+      } else {
+        // 벽면에 딱 붙도록 1px씩 최대 전진
+        const step = dx>0?1:-1;
+        while(Math.abs(o.x - nx) > 0 && !boxSolid(o.x+step, o.y, o.w, o.h)){
+          o.x += step;
+          if(dx>0 ? o.x>=nx : o.x<=nx) break;
+        }
+        o.blockedX = true;
+      }
+    }
+  }
+  // --- Y축 ---
+  if(dy){
+    const ny = o.y + dy;
+    if(!boxSolid(o.x, ny, o.w, o.h)){
+      o.y = ny;
+    } else {
+      const gx = slideAssist(o.y, o.x);
+      if(gx!==null && gx!==o.x && !boxSolid(gx, ny, o.w, o.h)){
+        o.x = gx; o.y = ny;
+      } else {
+        const step = dy>0?1:-1;
+        while(Math.abs(o.y - ny) > 0 && !boxSolid(o.x, o.y+step, o.w, o.h)){
+          o.y += step;
+          if(dy>0 ? o.y>=ny : o.y<=ny) break;
+        }
+        o.blockedY = true;
+      }
+    }
+  }
+}
+// 벽에 박혔을 때 가장 가까운 빈 공간으로 밀어내는 안전장치
+function unstick(o){
+  if(!boxSolid(o.x, o.y, o.w, o.h)) return;
+  for(let r=1; r<=TILE*2; r++){
+    for(const [ox,oy] of [[0,r],[0,-r],[r,0],[-r,0],[r,r],[-r,-r],[r,-r],[-r,r]]){
+      const cx=clamp(o.x+ox,0,PLAYW-o.w), cy=clamp(o.y+oy,0,PLAYH-o.h);
+      if(!boxSolid(cx, cy, o.w, o.h)){ o.x=cx; o.y=cy; return; }
+    }
+  }
+}
+// 충돌을 존중하는 넉백(벽으로 밀려 박히지 않음)
+function knockbackSolid(o, dirX, dirY, dist){
+  for(let i=0;i<dist;i++){
+    const nx=clamp(o.x+dirX,0,PLAYW-o.w);
+    if(nx!==o.x && !boxSolid(nx,o.y,o.w,o.h)) o.x=nx; else break;
+  }
+  for(let i=0;i<dist;i++){
+    const ny=clamp(o.y+dirY,0,PLAYH-o.h);
+    if(ny!==o.y && !boxSolid(o.x,ny,o.w,o.h)) o.y=ny; else break;
+  }
+}
+
+/* =========================================================================
+   입력 핸들러
+   ========================================================================= */
+function handleConfirm(){
+  if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}
+  if(G.mode==='title'){ startGame(); }
+  else if(G.mode==='over'){ startGame(); }
+  else if(G.mode==='clear'){ if(!G.formOpen) startGame(); }
+  else if(G.mode==='cave'){ /* 진행: 메시지 넘김 */ if(G.cave.msg<CAVE_LINES.length-1) G.cave.msg++; }
+}
+function handleAttack(){
+  if(G.mode!=='play') return;
+  const L=G.link;
+  if(!L.hasSword){ return; }
+  if(L.atk>0) return;
+  L.atk=16; sfxSword();
+  // 검 만땅이면 광선 발사
+  if(L.hp>=L.maxhp){
+    const cx=L.x+L.w/2, cy=L.y+L.h/2;
+    const v={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}[L.dir];
+    G.beams.push({x:cx-3,y:cy-3,w:6,h:6,vx:v[0]*3.4,vy:v[1]*3.4,life:70});
+    sfxBeam();
+  }
+}
+function startGame(){
+  G.mode='play'; G.cx=1; G.cy=1;
+  Object.assign(G.link,{x:7*TILE,y:9*TILE,dir:'up',atk:0,hp:6,maxhp:6,inv:0,hasSword:false});
+  G.rupees=0; G.cave.gaveSword=false;
+  // 몬스터 상태/집계 초기화 (재시작 시 전부 리셋 → 다시 부활)
+  G.screenState={}; G.killedEnemies=0; G.recorded=false;
+  G.formOpen=false; hideClearForm();
+  G.totalEnemies=0;
+  for(const k in SCREENS){ const s=SCREENS[k]; if(s.e) G.totalEnemies+=s.e.length; }
+  loadEnemies();
+}
+
+/* =========================================================================
+   업데이트
+   ========================================================================= */
+function update(){
+  G.t++;
+  if(G.mode==='play'){ updatePlay(); }
+  else if(G.mode==='scroll'){ updateScroll(); }
+  else if(G.mode==='cave'){ updateCave(); }
+  // 'clear' 모드는 별도 업데이트 없음(엔터로 재시작)
+}
+
+function updatePlay(){
+  const L=G.link;
+  if(L.atk>0) L.atk--;
+  if(L.inv>0) L.inv--;
+
+  // 이동 (공격 중엔 이동 정지 — 원작 감성)
+  if(L.atk<=8){
+    let dx=0,dy=0;
+    if(keys['arrowleft']||keys['a']) dx=-1;
+    else if(keys['arrowright']||keys['d']) dx=1;
+    else if(keys['arrowup']||keys['w']) dy=-1;
+    else if(keys['arrowdown']||keys['s']) dy=1;
+    if(dx){L.dir=dx<0?'left':'right';} else if(dy){L.dir=dy<0?'up':'down';}
+
+    const sp=L.spd;
+    // 한 축씩 이동 + 벽면 정렬 + 모서리 슬라이드 (벽끼임 방지)
+    L.blockedX=L.blockedY=false;
+    if(dx) moveEntity(L, dx*sp, 0);
+    if(dy) moveEntity(L, 0, dy*sp);
+    unstick(L);
+  }
+
+  // 화면 경계 → 스크린 전환
+  const off=1;
+  if(L.x < -off && SCREENS[(G.cx-1)+','+G.cy]) return beginScroll('left');
+  if(L.x+L.w > PLAYW+off && SCREENS[(G.cx+1)+','+G.cy]) return beginScroll('right');
+  if(L.y < -off && SCREENS[G.cx+','+(G.cy-1)]) return beginScroll('up');
+  if(L.y+L.h > PLAYH+off && SCREENS[G.cx+','+(G.cy+1)]) return beginScroll('down');
+  // 경계 못 넘으면 가둠
+  L.x=clamp(L.x,0,PLAYW-L.w); L.y=clamp(L.y,0,PLAYH-L.h);
+
+  // 동굴 입구 진입
+  if(tileAt(L.x+L.w/2, L.y+2)==='C' && L.dir==='up'){ enterCave(); return; }
+
+  // 검 히트박스 (공격 프레임 동안)
+  let sword=null;
+  if(L.atk>6 && L.hasSword){
+    const cx=L.x+L.w/2, cy=L.y+L.h/2;
+    if(L.dir==='up')    sword={x:cx-3,y:L.y-14,w:6,h:16};
+    if(L.dir==='down')  sword={x:cx-3,y:L.y+L.h-2,w:6,h:16};
+    if(L.dir==='left')  sword={x:L.x-14,y:cy-3,w:16,h:6};
+    if(L.dir==='right') sword={x:L.x+L.w-2,y:cy-3,w:16,h:6};
+  }
+
+  // 적 업데이트
+  for(const en of G.enemies){
+    en.mt++;
+    // 방향 전환
+    if(en.mt>=en.st){ en.mt=0; en.st=R(40,90); en.dir=pick(['up','down','left','right']); }
+    const v={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}[en.dir];
+    const nx=en.x+v[0]*en.spd, ny=en.y+v[1]*en.spd;
+    if(!boxSolid(nx,en.y,en.w,en.h) && nx>=0 && nx<=PLAYW-en.w) en.x=nx; else en.mt=en.st;
+    if(!boxSolid(en.x,ny,en.w,en.h) && ny>=0 && ny<=PLAYH-en.h) en.y=ny; else en.mt=en.st;
+    // 발사
+    en.shootT--;
+    if(en.shootT<=0){
+      en.shootT=R(70,160);
+      const sv={up:[0,-1.6],down:[0,1.6],left:[-1.6,0],right:[1.6,0]}[en.dir];
+      G.shots.push({x:en.x+en.w/2-3,y:en.y+en.h/2-3,w:6,h:6,vx:sv[0],vy:sv[1],
+                    kind:en.type==='moblin'?'arrow':'rock',life:140});
+    }
+    // 검 피격
+    if(sword && rectHit(sword,en)){ en.hp--; sfxHit(); if(en.hp<=0){killEnemy(en);} else {
+        // 넉백 (벽 뚫지 않도록)
+        const kx=(L.dir==='left'?-1:L.dir==='right'?1:0);
+        const ky=(L.dir==='up'?-1:L.dir==='down'?1:0);
+        knockbackSolid(en, kx, ky, 6);
+        en.mt=en.st;
+      } }
+    // 링크 접촉 피해
+    if(L.inv<=0 && rectHit(L,en)) hurtLink(1, en);
+  }
+  G.enemies=G.enemies.filter(e=>e.hp>0);
+  // 저장된 스크린 상태를 살아남은 몬스터로 동기화(부활 방지 유지)
+  G.screenState[G.cx+','+G.cy]=G.enemies;
+
+  // 모든 몬스터 처치 시 클리어
+  if(G.killedEnemies>=G.totalEnemies && G.totalEnemies>0){ triggerClear(); return; }
+
+  // 광선
+  for(const b of G.beams){
+    b.x+=b.vx; b.y+=b.vy; b.life--;
+    for(const en of G.enemies){ if(rectHit(b,en)){ en.hp--; b.life=0; sfxHit(); if(en.hp<=0)killEnemy(en); } }
+    if(b.x<0||b.x>PLAYW||b.y<0||b.y>PLAYH) b.life=0;
+  }
+  G.beams=G.beams.filter(b=>b.life>0);
+
+  // 적 탄
+  for(const s of G.shots){
+    s.x+=s.vx; s.y+=s.vy; s.life--;
+    if(s.x<-8||s.x>PLAYW+8||s.y<-8||s.y>PLAYH+8) s.life=0;
+    if(L.inv<=0 && rectHit(L,s)){ hurtLink(1,s); s.life=0; }
+  }
+  G.shots=G.shots.filter(s=>s.life>0);
+
+  // 드롭 수집
+  for(const d of G.drops){
+    d.life--;
+    if(rectHit(L,d)){
+      if(d.kind==='rupee'){ G.rupees=Math.min(255,G.rupees+1); sfxRupee(); }
+      else if(d.kind==='heart'){ L.hp=Math.min(L.maxhp,L.hp+2); sfxRupee(); }
+      d.life=0;
+    }
+  }
+  G.drops=G.drops.filter(d=>d.life>0);
+}
+
+function killEnemy(en){
+  if(en.dead) return;        // 중복 처치 방지(검+광선 동시타격 등)
+  en.dead=true;
+  en.hp=0; sfxHit();
+  G.killedEnemies++;         // 전체 처치 수 집계
+  const r=Math.random();
+  if(r<0.45) G.drops.push({x:en.x,y:en.y,w:12,h:14,kind:'rupee',life:360});
+  else if(r<0.6) G.drops.push({x:en.x,y:en.y,w:12,h:12,kind:'heart',life:360});
+}
+
+function hurtLink(dmg,src){
+  const L=G.link;
+  L.hp-=dmg; L.inv=70; sfxHurt();
+  // 넉백 (벽으로 밀려 박히지 않도록 충돌 검사)
+  if(src){
+    const dirX = (L.x >= (src.x||0)) ? 1 : -1;
+    const dirY = (L.y >= (src.y||0)) ? 1 : -1;
+    knockbackSolid(L, dirX, dirY, 6);
+    unstick(L);
+  }
+  if(L.hp<=0){ L.hp=0; G.mode='over'; G.over=0; }
+}
+
+// --- 클리어 처리 ---
+function triggerClear(){
+  if(G.mode==='clear') return;
+  G.mode='clear';
+  G.shots.length=0; G.beams.length=0;
+  sfxItem();
+  showClearForm();          // 이름/전화번호 입력 폼 표시
+}
+
+// --- 입력 폼 제어 ---
+const clearForm = document.getElementById('clearForm');
+const cfName    = document.getElementById('cfName');
+const cfPhone   = document.getElementById('cfPhone');
+const cfSubmit  = document.getElementById('cfSubmit');
+const cfMsg     = document.getElementById('cfMsg');
+
+function showClearForm(){
+  G.formOpen=true;
+  cfName.value=''; cfPhone.value=''; cfMsg.textContent='';
+  cfSubmit.disabled=false; cfSubmit.textContent='기록하기';
+  cfName.disabled=false; cfPhone.disabled=false;
+  clearForm.style.display='flex';
+  setTimeout(()=>cfName.focus(), 30);
+}
+function hideClearForm(){
+  clearForm.style.display='none';
+  if(document.activeElement) document.activeElement.blur();
+}
+
+// --- 구글 스프레드시트에 '이름 · 전화번호 · 제주의 전설 클리어' 기록 ---
+function submitClearRecord(){
+  if(G.recorded) return;
+  const name  = cfName.value.trim();
+  const phone = cfPhone.value.trim();
+  if(!name || !phone){ cfMsg.style.color='#f88'; cfMsg.textContent='이름과 전화번호를 모두 입력하세요.'; return; }
+
+  G.recorded=true;
+  cfSubmit.disabled=true; cfName.disabled=true; cfPhone.disabled=true;
+
+  if(!SHEET_URL || SHEET_URL.indexOf('http')!==0){
+    // 스프레드시트 주소 미설정: 전송은 건너뛰되 폼은 정상 종료
+    cfMsg.style.color='#ffd21e'; cfMsg.textContent='(SHEET_URL 미설정 - 기록 전송 안 함)';
+    finishClearForm(); return;
+  }
+
+  cfMsg.style.color='#7cc8fc'; cfMsg.textContent='기록 전송 중...';
+  try{
+    fetch(SHEET_URL, {
+      method:'POST',
+      mode:'no-cors',                 // Apps Script 웹앱 CORS 우회(응답은 읽지 않음)
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ name, phone, game:'제주의 전설' })
+    })
+    .then(()=>{ cfMsg.style.color='#8cf88c'; cfMsg.textContent='기록되었습니다!'; finishClearForm(); })
+    .catch(()=>{ cfMsg.style.color='#f88'; cfMsg.textContent='전송 실패 - 네트워크를 확인하세요.'; finishClearForm(); });
+  }catch(e){ cfMsg.style.color='#f88'; cfMsg.textContent='전송 오류'; finishClearForm(); }
+}
+// 폼 종료: 잠시 후 닫고 엔터로 재시작 가능 상태로
+function finishClearForm(){
+  setTimeout(()=>{ hideClearForm(); G.formOpen=false; }, 1200);
+}
+
+cfSubmit.addEventListener('click', submitClearRecord);
+// 입력창에서 엔터 → 제출
+[cfName, cfPhone].forEach(inp=>{
+  inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); submitClearRecord(); } });
+});
+
+// --- 스크린 전환 애니메이션 ---
+function beginScroll(dir){
+  const L=G.link;
+  const from={cx:G.cx,cy:G.cy};
+  if(dir==='left') G.cx--; if(dir==='right') G.cx++;
+  if(dir==='up') G.cy--; if(dir==='down') G.cy++;
+  G.mode='scroll';
+  G.scroll={dir, p:0, from, offA:0};
+  // 진입 후 링크 위치(반대편)
+  G.scroll.linkTarget={
+    left:{x:PLAYW-L.w-1, y:L.y}, right:{x:1, y:L.y},
+    up:{x:L.x, y:PLAYH-L.h-1}, down:{x:L.x, y:1},
+  }[dir];
+  G.scroll.linkStart={x:L.x,y:L.y};
+}
+function updateScroll(){
+  const s=G.scroll; s.p+=1/32;
+  if(s.p>=1){
+    G.mode='play';
+    Object.assign(G.link, s.linkTarget);
+    G.scroll=null;
+    loadEnemies();
+    return;
+  }
+  // 링크를 새 위치로 보간 이동시켜 자연스럽게
+  const L=G.link, t=s.p;
+  L.x = s.linkStart.x + (s.linkTarget.x - s.linkStart.x)*t;
+  L.y = s.linkStart.y + (s.linkTarget.y - s.linkStart.y)*t;
+}
+
+/* =========================================================================
+   동굴 씬
+   ========================================================================= */
+const CAVE_LINES = [
+  "IT'S DANGEROUS TO GO",
+  "ALONE! TAKE THIS.",
+];
+function enterCave(){
+  G.mode='cave'; G.cave.msg=0;
+  snd(400,.15,'triangle',.08);
+  G.link.x=7*TILE; G.link.y=8*TILE; G.link.dir='up';
+}
+function updateCave(){
+  const L=G.link;
+  let dx=0,dy=0;
+  if(keys['arrowleft']||keys['a']) dx=-1;
+  else if(keys['arrowright']||keys['d']) dx=1;
+  else if(keys['arrowup']||keys['w']) dy=-1;
+  else if(keys['arrowdown']||keys['s']) dy=1;
+  if(dx)L.dir=dx<0?'left':'right'; else if(dy)L.dir=dy<0?'up':'down';
+  L.x=clamp(L.x+dx*1.2, 2*TILE, 13*TILE);
+  L.y=clamp(L.y+dy*1.2, 3*TILE, 9*TILE);
+
+  // 검 아이템 픽업
+  if(!G.link.hasSword){
+    const sword={x:7*TILE-4,y:3*TILE,w:16,h:22};
+    if(rectHit({x:L.x,y:L.y,w:L.w,h:L.h}, sword)){
+      G.link.hasSword=true; G.cave.gaveSword=true; sfxItem();
+    }
+  }
+  // 아래 출구로 나가면 오버월드 복귀
+  if(L.y>=9*TILE-1 && L.dir==='down'){
+    G.mode='play'; G.cx=1; G.cy=1;
+    L.x=7*TILE; L.y=2*TILE; L.dir='down';
+    loadEnemies();
+  }
+}
+
+/* =========================================================================
+   렌더링
+   ========================================================================= */
+function draw(){
+  ctx.fillStyle=C.black; ctx.fillRect(0,0,256,240);
+
+  if(G.mode==='title'){ drawTitle(); return; }
+  if(G.mode==='over'){ drawHUD(); drawOver(); return; }
+  if(G.mode==='clear'){ drawClear(); return; }
+
+  // 플레이필드
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0,PY,PLAYW,PLAYH); ctx.clip();
+
+  if(G.mode==='scroll'){
+    const s=G.scroll;
+    const d={left:[-1,0],right:[1,0],up:[0,-1],down:[0,1]}[s.dir];
+    const px=-d[0]*PLAYW*s.p, py=-d[1]*PLAYH*s.p;
+    // 이전 스크린
+    drawScreen(SCREENS[s.from.cx+','+s.from.cy], px, py);
+    // 새 스크린
+    drawScreen(curScreen(), px+d[0]*PLAYW, py+d[1]*PLAYH);
+    // 링크는 새 스크린과 함께 이동
+    drawLink(G.link.x + px + d[0]*PLAYW, PY + G.link.y + py + d[1]*PLAYH);
+  } else if(G.mode==='cave'){
+    drawCave();
+  } else {
+    drawScreen(curScreen(),0,0);
+    // 드롭
+    for(const dr of G.drops){ if(dr.life<120 && (G.t>>2)&1) continue; drawDrop(dr); }
+    // 적
+    for(const en of G.enemies) drawEnemy(en);
+    // 탄
+    for(const s of G.shots) drawShot(s);
+    for(const b of G.beams) drawBeam(b);
+    // 링크 (무적 깜빡임)
+    if(!(G.link.inv>0 && (G.t>>2)&1)) drawLink(G.link.x, PY+G.link.y);
+  }
+  ctx.restore();
+
+  drawHUD();
+}
+
+// 타일 좌표 기반 결정론적 난수 (깜빡임 없는 장식 배치용)
+function hash2(x,y){ let h=(x*73856093)^(y*19349663); h=(h^(h>>13))>>>0; return (h%997)/997; }
+
+// --- 스크린(타일 배경) ---
+function drawScreen(s, ox, oy){
+  if(!s) return;
+  // 제주 들판 바닥
+  ctx.fillStyle=C.ground; ctx.fillRect(ox,PY+oy,PLAYW,PLAYH);
+  for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++){
+    const ch=s.t[y][x]; const px=ox+x*TILE, py=PY+oy+y*TILE;
+    if(ch==='.') drawGroundDecor(x,y,px,py);
+    drawTile(ch,px,py,x,y);
+  }
+}
+// 잔디밭 위 유채꽃 · 잔디 · 현무암 자갈
+function drawGroundDecor(tx,ty,px,py){
+  const r=hash2(tx,ty);
+  ctx.fillStyle=C.grassD; ctx.fillRect(px+2,py+11,2,1); ctx.fillRect(px+11,py+5,2,1);
+  ctx.fillStyle=C.grassL; ctx.fillRect(px+6,py+3,1,2); ctx.fillRect(px+13,py+12,1,2);
+  if(r<0.14){ // 유채꽃 무리
+    ctx.fillStyle=C.canolaD; ctx.fillRect(px+4,py+6,4,4);
+    ctx.fillStyle=C.canola;  ctx.fillRect(px+4,py+6,2,2); ctx.fillRect(px+6,py+8,2,2);
+  } else if(r<0.24){ // 작은 현무암 자갈
+    ctx.fillStyle=C.rockD; ctx.fillRect(px+9,py+9,4,3);
+    ctx.fillStyle=C.rock;  ctx.fillRect(px+9,py+9,2,2);
+  }
+}
+function drawTile(ch,px,py,tx,ty){
+  switch(ch){
+    case 'T': { // 귤나무
+      ctx.fillStyle=C.trunk; ctx.fillRect(px+6,py+11,4,5);
+      ctx.fillStyle=C.treeD; ctx.fillRect(px+1,py+1,14,12);
+      ctx.fillStyle=C.treeL; ctx.fillRect(px+2,py+2,5,4); ctx.fillRect(px+9,py+2,4,3);
+      ctx.fillRect(px+4,py+7,4,3); ctx.fillRect(px+10,py+7,3,3);
+      // 귤 열매
+      ctx.fillStyle=C.tangerine; ctx.fillRect(px+3,py+5,2,2); ctx.fillRect(px+9,py+4,2,2);
+      ctx.fillRect(px+11,py+9,2,2); ctx.fillRect(px+5,py+9,2,2);
+      ctx.fillStyle=C.tangerineL; ctx.fillRect(px+3,py+5,1,1); ctx.fillRect(px+9,py+4,1,1);
+      break; }
+    case 'R': { // 현무암 바위 (제주 검은 돌)
+      ctx.fillStyle=C.rockD; ctx.fillRect(px+1,py+2,14,13);
+      ctx.fillStyle=C.rock;  ctx.fillRect(px+2,py+2,12,11);
+      ctx.fillStyle=C.rockL; ctx.fillRect(px+3,py+3,5,3); ctx.fillRect(px+9,py+5,3,2);
+      // 현무암 특유의 구멍
+      ctx.fillStyle=C.rockD; ctx.fillRect(px+5,py+7,2,2); ctx.fillRect(px+10,py+9,2,2);
+      ctx.fillRect(px+4,py+11,2,2); break; }
+    case 'W': { // 제주 바다
+      ctx.fillStyle=C.waterD; ctx.fillRect(px,py,16,16);
+      ctx.fillStyle=C.waterL;
+      const w=(Math.floor(G.t/16)%2)?0:2;
+      ctx.fillRect(px+2+w,py+4,4,2); ctx.fillRect(px+9-w,py+9,4,2);
+      ctx.fillRect(px+5+w,py+12,3,1); break; }
+    case 'M': { // 현무암 절벽 / 오름
+      ctx.fillStyle=C.mtnD; ctx.fillRect(px,py,16,16);
+      ctx.fillStyle=C.mtn;  ctx.fillRect(px+1,py+1,14,14);
+      // 이끼 낀 윗면
+      ctx.fillStyle=C.mtnMoss; ctx.fillRect(px+1,py+1,14,3);
+      ctx.fillStyle=C.rockD; ctx.fillRect(px+3,py+7,3,2); ctx.fillRect(px+10,py+5,3,2);
+      ctx.fillRect(px+6,py+11,3,2); ctx.fillRect(px+11,py+11,2,2); break; }
+    case 'S': { // 흙길 / 산책로
+      ctx.fillStyle=C.sand; ctx.fillRect(px,py,16,16);
+      ctx.fillStyle=C.sandL; ctx.fillRect(px+3,py+3,2,2); ctx.fillRect(px+10,py+8,2,2);
+      ctx.fillStyle=C.canolaD; ctx.fillRect(px+7,py+12,2,1); break; }
+    case 'C': { // 용암동굴 입구
+      ctx.fillStyle=C.mtnD; ctx.fillRect(px,py,16,16);
+      ctx.fillStyle=C.mtn;  ctx.fillRect(px+1,py+1,14,14);
+      ctx.fillStyle=C.mtnMoss; ctx.fillRect(px+1,py+1,14,2);
+      ctx.fillStyle=C.black; ctx.fillRect(px+4,py+5,8,11);
+      ctx.fillRect(px+5,py+3,6,3); break; }
+  }
+}
+
+// --- 링크 ---
+function drawLink(x,y){
+  const L=G.link, d=L.dir;
+  // 그림자
+  ctx.fillStyle='rgba(0,0,0,.18)'; ctx.fillRect(x+2,y+14,12,2);
+  // 몸통(초록 튜닉)
+  ctx.fillStyle=C.tunicD; ctx.fillRect(x+2,y+7,12,8);
+  ctx.fillStyle=C.tunic;  ctx.fillRect(x+3,y+7,10,7);
+  // 머리/모자
+  ctx.fillStyle=C.tunic;  ctx.fillRect(x+3,y+1,10,4);   // 모자
+  ctx.fillStyle=C.skin;   ctx.fillRect(x+4,y+4,8,4);     // 얼굴
+  // 방향 표시(눈/모자챙)
+  ctx.fillStyle=C.tunicD;
+  if(d==='up'){ ctx.fillRect(x+3,y+2,10,3); ctx.fillStyle=C.skin; ctx.fillRect(x+5,y+5,6,2);}
+  if(d==='down'){ ctx.fillStyle=C.black; ctx.fillRect(x+5,y+6,2,1); ctx.fillRect(x+9,y+6,2,1);}
+  if(d==='left'){ ctx.fillStyle=C.black; ctx.fillRect(x+4,y+6,2,1);}
+  if(d==='right'){ ctx.fillStyle=C.black; ctx.fillRect(x+10,y+6,2,1);}
+  // 다리
+  ctx.fillStyle=C.trunk;
+  const step=(Math.floor(G.t/8)%2)?0:2;
+  ctx.fillRect(x+3+step,y+14,3,2); ctx.fillRect(x+10-step,y+14,3,2);
+
+  // 검
+  if(L.atk>6 && L.hasSword){
+    ctx.fillStyle=C.blade; ctx.fillStyle=C.blade;
+    if(d==='up')    { ctx.fillRect(x+6,y-14,3,16); ctx.fillStyle=C.hilt; ctx.fillRect(x+4,y-2,7,2);}
+    if(d==='down')  { ctx.fillRect(x+7,y+14,3,16); ctx.fillStyle=C.hilt; ctx.fillRect(x+5,y+13,7,2);}
+    if(d==='left')  { ctx.fillRect(x-14,y+6,16,3); ctx.fillStyle=C.hilt; ctx.fillRect(x-2,y+4,2,7);}
+    if(d==='right') { ctx.fillRect(x+14,y+7,16,3); ctx.fillStyle=C.hilt; ctx.fillRect(x+13,y+5,2,7);}
+  }
+}
+
+function drawEnemy(en){
+  const x=en.x, y=PY+en.y;
+  ctx.fillStyle='rgba(0,0,0,.18)'; ctx.fillRect(x+2,y+13,11,2);
+  const bob=(Math.floor(G.t/10)%2)?0:1;
+  if(en.type==='oct'){ // 귤 몬스터
+    // 잎/꼭지
+    ctx.fillStyle=C.gyulLeaf; ctx.fillRect(x+6,y-bob,2,3); ctx.fillRect(x+8,y+1-bob,2,2);
+    // 둥근 귤 몸통
+    ctx.fillStyle=C.gyul;
+    ctx.fillRect(x+3,y+3,9,9); ctx.fillRect(x+2,y+5,11,5); ctx.fillRect(x+4,y+2,7,11);
+    // 아래쪽 음영
+    ctx.fillStyle=C.gyulD; ctx.fillRect(x+3,y+10,9,2); ctx.fillRect(x+2,y+7,1,3); ctx.fillRect(x+12,y+7,1,3);
+    // 눈 (방향 따라 이동)
+    const ex=en.dir==='left'?-1:en.dir==='right'?1:0;
+    ctx.fillStyle=C.black; ctx.fillRect(x+5+ex,y+6,2,2); ctx.fillRect(x+9+ex,y+6,2,2);
+    // 입
+    ctx.fillStyle=C.gyulD; ctx.fillRect(x+6,y+10,3,1);
+    // 하이라이트
+    ctx.fillStyle=C.tangerineL; ctx.fillRect(x+4,y+4,2,1);
+  } else { // 돌하르방
+    // 벙거지 모자
+    ctx.fillStyle=C.harbangD; ctx.fillRect(x+2,y-bob,11,4);
+    ctx.fillStyle=C.harbangL; ctx.fillRect(x+3,y-bob,9,2);
+    // 머리
+    ctx.fillStyle=C.harbang; ctx.fillRect(x+3,y+3,9,7);
+    // 튀어나온 둥근 눈
+    ctx.fillStyle=C.harbangD; ctx.fillRect(x+3,y+4,3,3); ctx.fillRect(x+9,y+4,3,3);
+    ctx.fillStyle=C.black; ctx.fillRect(x+4,y+5,1,1); ctx.fillRect(x+10,y+5,1,1);
+    // 크고 뭉툭한 코
+    ctx.fillStyle=C.harbangL; ctx.fillRect(x+6,y+6,3,4);
+    // 몸통 + 배에 얹은 손
+    ctx.fillStyle=C.harbang; ctx.fillRect(x+2,y+9,11,5);
+    ctx.fillStyle=C.harbangD; ctx.fillRect(x+4,y+11,3,2); ctx.fillRect(x+9,y+11,3,2);
+    // 현무암 구멍 질감
+    ctx.fillStyle=C.rockD; ctx.fillRect(x+3,y+12,1,1); ctx.fillRect(x+11,y+9,1,1);
+  }
+}
+function drawShot(s){
+  const x=s.x, y=PY+s.y;
+  if(s.kind==='arrow'){ // 돌하르방이 던진 현무암 조각
+    ctx.fillStyle=C.rockD; ctx.fillRect(x,y+1,6,5); ctx.fillRect(x+1,y,4,6);
+    ctx.fillStyle=C.rock;  ctx.fillRect(x+1,y+1,2,2);
+  } else { // 귤 몬스터가 쏜 작은 귤
+    ctx.fillStyle=C.gyul;  ctx.fillRect(x+1,y+1,4,4); ctx.fillRect(x,y+2,6,2); ctx.fillRect(x+2,y,2,6);
+    ctx.fillStyle=C.gyulLeaf; ctx.fillRect(x+2,y-1,1,1);
+    ctx.fillStyle=C.tangerineL; ctx.fillRect(x+1,y+1,1,1);
+  }
+}
+function drawBeam(b){
+  const x=b.x, y=PY+b.y;
+  ctx.fillStyle=(G.t>>1&1)?'#f8f8f8':'#a8e8ff';
+  ctx.fillRect(x,y+1,6,4); ctx.fillRect(x+1,y,4,6);
+}
+function drawDrop(d){
+  const x=d.x, y=PY+d.y;
+  if(d.kind==='rupee'){
+    ctx.fillStyle=C.rupee; ctx.fillRect(x+3,y+1,6,12); ctx.fillRect(x+2,y+4,8,6);
+    ctx.fillStyle=C.rupeeL; ctx.fillRect(x+4,y+2,2,8);
+  } else {
+    ctx.fillStyle=C.red;
+    ctx.fillRect(x+2,y+3,3,3); ctx.fillRect(x+7,y+3,3,3);
+    ctx.fillRect(x+1,y+5,10,3); ctx.fillRect(x+3,y+8,6,2); ctx.fillRect(x+5,y+10,2,2);
+  }
+}
+
+// --- 동굴 내부 ---
+function drawCave(){
+  ctx.fillStyle=C.black; ctx.fillRect(0,PY,PLAYW,PLAYH);
+  // 바위 테두리
+  ctx.fillStyle='#303030';
+  for(let x=0;x<COLS;x++){ drawCaveRock(x*TILE,PY); drawCaveRock(x*TILE,PY+PLAYH-TILE); }
+  for(let y=0;y<ROWS;y++){ drawCaveRock(0,PY+y*TILE); drawCaveRock((COLS-1)*TILE,PY+y*TILE); }
+  // 아래 출구
+  ctx.fillStyle=C.black; ctx.fillRect(6*TILE,PY+PLAYH-TILE,4*TILE,TILE);
+  // 횃불
+  drawTorch(3*TILE, PY+2*TILE); drawTorch(12*TILE, PY+2*TILE);
+  // 노인
+  drawOldMan(7*TILE-4, PY+4*TILE);
+  // 검 아이템 (미획득 시)
+  if(!G.link.hasSword){
+    const sx=7*TILE, sy=PY+3*TILE;
+    ctx.fillStyle=C.blade; ctx.fillRect(sx+2,sy,3,18);
+    ctx.fillStyle=C.hilt;  ctx.fillRect(sx,sy+14,7,3); ctx.fillRect(sx+2,sy+16,3,4);
+    // 반짝임
+    if((G.t>>3)&1){ ctx.fillStyle=C.white; ctx.fillRect(sx+1,sy+2,1,4); }
+  }
+  // 링크
+  drawLink(G.link.x, PY+G.link.y);
+  // 메시지 텍스트
+  for(let i=0;i<=G.cave.msg && i<CAVE_LINES.length;i++){
+    text(CAVE_LINES[i], 32, PY+PLAYH-40+i*10, C.white);
+  }
+  if(G.link.hasSword){
+    text('YOU GOT THE SWORD!', 40, PY+PLAYH-40, C.hilt);
+    text('WALK DOWN TO EXIT', 44, PY+PLAYH-30, '#a8a8a8');
+  }
+}
+function drawCaveRock(x,y){
+  ctx.fillStyle='#282828'; ctx.fillRect(x,y,16,16);
+  ctx.fillStyle='#404040'; ctx.fillRect(x+1,y+1,6,6); ctx.fillRect(x+8,y+8,6,6);
+  ctx.fillStyle='#181818'; ctx.fillRect(x+8,y+1,6,6); ctx.fillRect(x+1,y+8,6,6);
+}
+function drawTorch(x,y){
+  ctx.fillStyle='#603010'; ctx.fillRect(x+6,y+8,4,8);
+  const f=(G.t>>2)&1;
+  ctx.fillStyle=C.flame; ctx.fillRect(x+5,y+2-f,6,6);
+  ctx.fillStyle='#f8d038'; ctx.fillRect(x+6,y+3-f,4,3);
+  ctx.fillStyle='#f8f8b0'; ctx.fillRect(x+7,y+4-f,2,2);
+}
+function drawOldMan(x,y){
+  ctx.fillStyle=C.robe; ctx.fillRect(x,y+8,16,16);        // 로브
+  ctx.fillStyle=C.skin; ctx.fillRect(x+4,y+2,8,6);        // 얼굴
+  ctx.fillStyle=C.oldman; ctx.fillRect(x+3,y,10,3);       // 머리
+  ctx.fillStyle=C.oldman; ctx.fillRect(x+3,y+7,10,7);     // 수염
+  ctx.fillStyle=C.black; ctx.fillRect(x+5,y+4,1,1); ctx.fillRect(x+10,y+4,1,1);
+}
+
+/* =========================================================================
+   HUD
+   ========================================================================= */
+function drawHUD(){
+  ctx.fillStyle=C.black; ctx.fillRect(0,0,256,HUD);
+  // 미니맵 박스
+  ctx.fillStyle='#1c1c8c'; ctx.fillRect(8,12,60,40);
+  ctx.strokeStyle='#7c7c7c'; ctx.lineWidth=1; ctx.strokeRect(8.5,12.5,60,40);
+  text('OVERWORLD', 14, 6, '#f8f8f8');
+  // 현재 위치 점 (3x3)
+  for(let gy=0;gy<3;gy++)for(let gx=0;gx<3;gx++){
+    if(!SCREENS[gx+','+gy])continue;
+    const bx=14+gx*18, by=16+gy*11;
+    ctx.fillStyle=(gx===G.cx&&gy===G.cy && (G.t>>3&1))?C.red:'#3838c8';
+    ctx.fillRect(bx,by,10,7);
+  }
+  // 아이템 박스 (B/A)
+  ctx.fillStyle='#181818';
+  ctx.fillRect(96,20,26,26); ctx.fillRect(124,20,26,26);
+  ctx.strokeStyle='#7c7c7c'; ctx.strokeRect(96.5,20.5,25,25); ctx.strokeRect(124.5,20.5,25,25);
+  text('B',102,10,'#f8f8f8'); text('A',130,10,'#f8f8f8');
+  // A박스에 검
+  if(G.link.hasSword){
+    ctx.fillStyle=C.blade; ctx.fillRect(135,24,3,14);
+    ctx.fillStyle=C.hilt; ctx.fillRect(133,36,7,3);
+  }
+  // 루피/키/폭탄
+  ctx.fillStyle=C.rupee; ctx.fillRect(160,8,5,9); ctx.fillStyle=C.rupeeL; ctx.fillRect(161,9,2,5);
+  text('X'+String(G.rupees).padStart(3,'0'), 168, 8, '#f8f8f8');
+  text('KEY X0', 160, 20, '#f8f8f8');
+  text('BOMB X0', 160, 32, '#f8f8f8');
+  // 하트
+  text('-LIFE-', 176, 44, C.red);
+  const full=Math.floor(G.link.hp/2), half=G.link.hp%2, total=Math.ceil(G.link.maxhp/2);
+  for(let i=0;i<total;i++){
+    const hx=176+i*10, hy=52;
+    if(i<full) drawHeart(hx,hy,'full');
+    else if(i===full && half) drawHeart(hx,hy,'half');
+    else drawHeart(hx,hy,'empty');
+  }
+}
+function drawHeart(x,y,type){
+  const L = (type==='empty')?C.heartE:C.red;      // 왼쪽 반
+  const Rt= (type==='full') ?C.red   :C.heartE;   // 오른쪽 반
+  // 왼쪽 로브 모양
+  ctx.fillStyle=L; ctx.fillRect(x,y+1,3,3); ctx.fillRect(x+1,y+3,2,3); ctx.fillRect(x+2,y+6,1,1);
+  // 오른쪽
+  ctx.fillStyle=Rt; ctx.fillRect(x+4,y+1,3,3); ctx.fillRect(x+4,y+3,2,3); ctx.fillRect(x+4,y+6,1,1);
+  // 가운데 아래 꼭지
+  ctx.fillStyle=(type==='empty')?C.heartE:C.red; ctx.fillRect(x+3,y+4,1,3);
+}
+
+/* =========================================================================
+   타이틀 / 게임오버
+   ========================================================================= */
+function drawTitle(){
+  // 배경 그라데이션 느낌
+  ctx.fillStyle='#000030'; ctx.fillRect(0,0,256,240);
+  // 검 엠블럼
+  const cx=128, cy=78;
+  ctx.fillStyle=C.blade; ctx.fillRect(cx-3,cy-34,6,52);
+  ctx.fillStyle='#c0c0c0'; ctx.fillRect(cx-2,cy-34,2,52);
+  ctx.fillStyle=C.hilt; ctx.fillRect(cx-14,cy+14,28,6); ctx.fillRect(cx-4,cy+18,8,10);
+  ctx.fillStyle='#f8e0a0'; ctx.fillRect(cx-3,cy+28,6,3);
+  // 반짝임
+  if((G.t>>3)&1){ ctx.fillStyle=C.white; ctx.fillRect(cx-2,cy-30,2,8); }
+
+  textBig('THE LOST BLADE', 128, 130, C.hilt, true);
+  text('JEJU ISLAND ADVENTURE', 128, 152, C.tangerine, true);
+
+  if((G.t>>4)&1) text('PUSH  ENTER', 128, 186, C.white, true);
+  text('ARROWS / WASD  MOVE', 128, 206, '#7c7c7c', true);
+  text('Z / J  SWORD', 128, 216, '#7c7c7c', true);
+  text('AN ORIGINAL HOMAGE - NOT NINTENDO', 128, 232, '#404070', true);
+}
+function drawOver(){
+  ctx.fillStyle='rgba(0,0,0,.75)'; ctx.fillRect(0,PY,PLAYW,PLAYH);
+  textBig('GAME OVER', 128, PY+80, C.red, true);
+  if((G.t>>4)&1) text('PUSH ENTER TO RETRY', 128, PY+110, C.white, true);
+}
+function drawClear(){
+  // 배경
+  ctx.fillStyle='#001830'; ctx.fillRect(0,0,256,240);
+  // 반짝이는 별
+  for(let i=0;i<24;i++){
+    const sx=(i*97+ (G.t>>1)*0)%252+2, sy=(i*53)%236+2;
+    if(((G.t>>2)+i)&3) continue;
+    ctx.fillStyle=C.white; ctx.fillRect(sx,sy,1,1);
+  }
+  // 승리의 검 엠블럼
+  const cx=128, cy=60;
+  ctx.fillStyle=C.blade; ctx.fillRect(cx-3,cy-28,6,44);
+  ctx.fillStyle='#c0c0c0'; ctx.fillRect(cx-2,cy-28,2,44);
+  ctx.fillStyle=C.hilt; ctx.fillRect(cx-13,cy+12,26,6); ctx.fillRect(cx-4,cy+16,8,9);
+  if((G.t>>2)&1){ ctx.fillStyle=C.white; ctx.fillRect(cx-2,cy-24,2,7); }
+
+  textBig('QUEST COMPLETE', 128, 108, C.hilt, true);
+  text('THE LOST BLADE', 128, 132, C.tangerine, true);
+  // 한글 클리어 문구
+  ctx.fillStyle=C.white; ctx.font='bold 13px sans-serif'; ctx.textBaseline='top'; ctx.textAlign='center';
+  ctx.fillText('제주의 전설 클리어', 128, 150);
+  ctx.textAlign='left';
+
+  text('ALL MONSTERS DEFEATED', 128, 178, '#8cf88c', true);
+  // 폼이 열려 있는 동안은 안내, 닫힌 뒤엔 재시작 안내
+  if(G.formOpen){
+    if((G.t>>4)&1) text('ENTER YOUR INFO ABOVE', 128, 198, '#7cc8fc', true);
+  } else {
+    if((G.t>>4)&1) text('PUSH ENTER TO PLAY AGAIN', 128, 198, C.white, true);
+  }
+}
+
+/* =========================================================================
+   텍스트 (내장 폰트 사용, 픽셀 스케일로 렌더)
+   ========================================================================= */
+function text(str,x,y,color,center){
+  ctx.fillStyle=color; ctx.font='8px monospace'; ctx.textBaseline='top';
+  ctx.textAlign=center?'center':'left';
+  ctx.fillText(str,x,y);
+  ctx.textAlign='left';
+}
+function textBig(str,x,y,color,center){
+  ctx.fillStyle=color; ctx.font='bold 16px monospace'; ctx.textBaseline='top';
+  ctx.textAlign=center?'center':'left';
+  ctx.fillText(str,x,y);
+  ctx.textAlign='left';
+}
+
+/* =========================================================================
+   메인 루프
+   ========================================================================= */
+function frame(){
+  update();
+  draw();
+  requestAnimationFrame(frame);
+}
+frame();
+</script>
+</body>
+</html>

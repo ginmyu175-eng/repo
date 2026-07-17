@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+
+<html class="scroll-smooth" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>2026 Jeju Mandarin Expo</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "inverse-on-surface": "#f3f1e9",
+                      "background": "#fbf9f1",
+                      "surface-dim": "#dcdad2",
+                      "outline": "#8b7263",
+                      "error-container": "#ffdad6",
+                      "tertiary-container": "#56b959",
+                      "on-secondary": "#ffffff",
+                      "on-primary-container": "#5f2c00",
+                      "on-tertiary-fixed-variant": "#005313",
+                      "on-tertiary": "#ffffff",
+                      "secondary-fixed-dim": "#e9c400",
+                      "surface-container-low": "#f5f4ec",
+                      "surface": "#fbf9f1",
+                      "on-primary": "#ffffff",
+                      "secondary": "#705d00",
+                      "on-secondary-fixed-variant": "#544600",
+                      "tertiary": "#006e1c",
+                      "on-surface": "#1b1c17",
+                      "tertiary-fixed": "#94f990",
+                      "surface-container-highest": "#e4e3db",
+                      "on-surface-variant": "#574235",
+                      "surface-tint": "#954a00",
+                      "secondary-fixed": "#ffe16d",
+                      "on-tertiary-fixed": "#002204",
+                      "inverse-primary": "#ffb785",
+                      "surface-container-lowest": "#ffffff",
+                      "on-primary-fixed": "#301400",
+                      "on-tertiary-container": "#00450e",
+                      "surface-container": "#f0eee6",
+                      "on-background": "#1b1c17",
+                      "outline-variant": "#dec1af",
+                      "secondary-container": "#fcd400",
+                      "on-error": "#ffffff",
+                      "on-error-container": "#93000a",
+                      "primary-container": "#ff8200",
+                      "inverse-surface": "#30312c",
+                      "tertiary-fixed-dim": "#78dc77",
+                      "surface-container-high": "#eae8e0",
+                      "primary-fixed": "#ffdcc6",
+                      "on-secondary-container": "#6e5c00",
+                      "primary": "#954a00",
+                      "primary-fixed-dim": "#ffb785",
+                      "surface-variant": "#e4e3db",
+                      "surface-bright": "#fbf9f1",
+                      "error": "#ba1a1a",
+                      "on-secondary-fixed": "#221b00",
+                      "on-primary-fixed-variant": "#723700"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "xs": "4px",
+                      "gutter": "24px",
+                      "base": "8px",
+                      "md": "24px",
+                      "lg": "48px",
+                      "container-max": "1280px",
+                      "sm": "12px",
+                      "xl": "80px"
+              },
+              "fontFamily": {
+                      "body-lg": [
+                              "Be Vietnam Pro"
+                      ],
+                      "button-text": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "headline-md": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "label-bold": [
+                              "Be Vietnam Pro"
+                      ],
+                      "headline-lg-mobile": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "display-lg": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "headline-lg": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "body-md": [
+                              "Be Vietnam Pro"
+                      ]
+              },
+              "fontSize": {
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "1.6",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "button-text": [
+                              "18px",
+                              {
+                                      "lineHeight": "1.0",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-md": [
+                              "28px",
+                              {
+                                      "lineHeight": "1.3",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "label-bold": [
+                              "14px",
+                              {
+                                      "lineHeight": "1.0",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "headline-lg-mobile": [
+                              "32px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "display-lg": [
+                              "56px",
+                              {
+                                      "lineHeight": "1.1",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "headline-lg": [
+                              "40px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "1.6",
+                                      "fontWeight": "400"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+    </script>
+<style>
+        .snap-y-mandatory {
+            scroll-snap-type: y mandatory;
+        }
+        .snap-start {
+            scroll-snap-align: start;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        @keyframes bounce-slow {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .animate-bounce-slow {
+            animation: bounce-slow 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background h-screen overflow-hidden">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-md py-base bg-transparent flat no shadows docked full-width top-0">
+<div class="text-headline-md font-headline-md font-extrabold text-primary">
+            Jeju Mandarin Expo
+        </div>
+<div class="flex items-center gap-sm">
+<button class="text-primary hover:text-primary transition-colors duration-200 Active: scale-95 transition-transform duration-150">
+<span class="material-symbols-outlined" data-icon="menu" data-weight="regular">menu</span>
+</button>
+</div>
+</header>
+<main class="h-screen w-full overflow-y-auto snap-y-mandatory snap-y">
+<!-- Section 1: Hero -->
+<section class="h-screen w-full snap-start relative flex flex-col items-center justify-center">
+<div class="absolute inset-0 bg-cover bg-center z-0" data-alt="A sweeping, cinematic view of a sun-drenched Jeju mandarin orchard at golden hour. The sky is a bright, optimistic blue, and the vibrant orange mandarins contrast beautifully against the lush, deep green leaves. The lighting is soft yet bright, emphasizing a premium, inviting, and organic modern aesthetic characteristic of high-end festival photography." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAtAWT6mISQYzuM19iP1qBmYxKPpKNDN3KUU1PFK7RlO9uePf7L7QrSa8_xuafhMSiOqZ1O2hSCIgoaEAlf4lbyPD0TbBt4PKvEjil2MvrLoououutmLy2G7zXCve371nRTOxtMEv9ROUSLToxciGJfqCSnH7PuzRLuf0-cg0xdfYniBGTiUW_DGXY5cRcoDdgnAt9I_WgcYG1QfQZGvqOlzKTcPwaHYUxbgONpmeXyGi3CdqXpPWmfwMx5bYVxOyBD1cZ8BKeC9jM')"></div>
+<div class="absolute inset-0 bg-gradient-to-b from-transparent to-surface-container-highest/80 z-10"></div>
+<div class="relative z-20 text-center px-md">
+<h1 class="text-display-lg font-display-lg text-primary-container drop-shadow-lg mb-sm">
+                    2026! 제주감귤박람회
+                </h1>
+<p class="text-headline-md font-headline-md text-on-surface">
+                    Experience the Zest of Jeju
+                </p>
+</div>
+<div class="absolute bottom-lg left-1/2 -translate-x-1/2 z-20 flex flex-col items-center animate-bounce-slow text-primary">
+<span class="text-label-bold font-label-bold mb-xs">Scroll Down</span>
+<span class="material-symbols-outlined text-4xl">keyboard_arrow_down</span>
+</div>
+</section>
+<!-- Section 2: Games -->
+<section class="h-screen w-full snap-start relative bg-primary-fixed-dim flex flex-col items-center justify-center p-md overflow-hidden">
+<!-- Subtle geometric pattern via CSS background -->
+<div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 2px 2px, #954a00 1px, transparent 0); background-size: 32px 32px;"></div>
+<div class="relative z-10 text-center mb-xl w-full max-w-container-max">
+<h2 class="text-headline-lg font-headline-lg text-on-primary-container mb-lg">
+                    쿠폰을 얻어라! 감귤게임즈!
+                </h2>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-lg w-full">
+<!-- Game Button 1 -->
+<button onclick="location.href='blade.html'" class="cursor-pointer glass-panel p-lg rounded-xl flex flex-col items-center justify-center group hover:-translate-y-2 transition-transform duration-300 shadow-lg hover:shadow-xl shadow-primary/10">
+<div class="w-32 h-32 mb-md rounded-full bg-surface flex items-center justify-center border-4 border-primary">
+<span class="material-symbols-outlined text-display-lg text-primary" style="font-variation-settings: 'FILL' 1;">eco</span>
+</div>
+<h3 class="text-headline-md font-headline-md text-on-surface mb-sm">제주의 전설</h3>
+<p class="text-body-md font-body-md text-on-surface-variant">한라봉 20% 할인 쿠폰</p>
+</button>
+<!-- Game Button 2 -->
+<button onclick="location.href='donk.html'" class="cursor-pointer glass-panel p-lg rounded-xl flex flex-col items-center justify-center group hover:-translate-y-2 transition-transform duration-300 shadow-lg hover:shadow-xl shadow-primary/10">
+<div class="w-32 h-32 mb-md rounded-full bg-surface flex items-center justify-center border-4 border-secondary-container">
+<span class="material-symbols-outlined text-display-lg text-secondary" style="font-variation-settings: 'FILL' 1;">sports_esports</span>
+</div>
+<h3 class="text-headline-md font-headline-md text-on-surface mb-sm">동킹땅콩</h3>
+<p class="text-body-md font-body-md text-on-surface-variant">맛보기 귤 3종 무료 쿠폰</p>
+</button>
+<!-- Game Button 3 -->
+<button onclick="location.href='defen.html'" class="cursor-pointer glass-panel p-lg rounded-xl flex flex-col items-center justify-center group hover:-translate-y-2 transition-transform duration-300 shadow-lg hover:shadow-xl shadow-primary/10">
+<div class="w-32 h-32 mb-md rounded-full bg-surface flex items-center justify-center border-4 border-tertiary-container">
+<span class="material-symbols-outlined text-display-lg text-tertiary" style="font-variation-settings: 'FILL' 1;">coronavirus</span>
+</div>
+<h3 class="text-headline-md font-headline-md text-on-surface mb-sm">돌하르방 좀비 디펜스</h3>
+<p class="text-body-md font-body-md text-on-surface-variant">감귤 비누 선물세트 15% 할인 쿠폰</p>
+</button>
+</div>
+</div>
+</section>
+<!-- Section 3: Photo Booth -->
+<section class="h-screen w-full snap-start relative flex items-center justify-center p-md">
+<div class="absolute inset-0 bg-cover bg-center z-0" data-alt="A trendy, pastel-colored photo-studio background for a mandarin expo. Soft pastel pinks, pale yellows, and gentle light blues create a cheerful, pop-art inspired backdrop. Scattered, stylized 3D shapes of citrus slices and vintage camera motifs float in the soft, high-key lighting, maintaining a clean, modern aesthetic." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCvIh9sOMhMXNC6ZafUit5NbrG_nCz7z59SNsL38IcD0nCHb0_-W-APLENLnPldlcOppV1CDdfGl-w_4KbBEnhTctuDn-RobWP2qy1wZhoi5rEkWaY-5P9wuMo22YRMTjo0AEOKNUqbS-3mFBC2-LqiHKKBziyPicR-VTMt--GF3Hfgnvo68QFAPsB1CO02tmhiJpwFC2gbqcVFD7z7qSUadcYR8dRxELtoYk90V69EalDzga_ryyO3w8CXKoetACucvDBc9zMWWqY')"></div>
+<div class="absolute inset-0 bg-surface/40 backdrop-blur-sm z-10"></div>
+<button onclick="location.href='pic.html'" class="cursor-pointer relative z-20 w-full max-w-4xl aspect-[2/1] rounded-[48px] bg-gradient-to-br from-primary-container to-inverse-primary shadow-[0_20px_50px_rgba(255,130,0,0.3)] flex items-center justify-center overflow-hidden group hover:scale-[1.02] transition-transform duration-500">
+<div class="absolute inset-0 border-[8px] border-white/20 rounded-[48px] m-4"></div>
+<div class="flex flex-col items-center">
+<span class="material-symbols-outlined text-[120px] text-on-primary-container mb-md group-hover:rotate-12 transition-transform duration-500" style="font-variation-settings: 'FILL' 1;">photo_camera</span>
+<h2 class="text-display-lg font-display-lg text-on-primary-container drop-shadow-md">
+                        감귤네컷
+                    </h2>
+</div>
+</button>
+</section>
+<!-- Section 4: Experience Zone -->
+<section class="h-screen w-full snap-start relative flex items-center justify-center p-md">
+<div class="absolute inset-0 bg-cover bg-center z-0" data-alt="A warm, inviting scene depicting a traditional Jeju tea ceremony and mandarin picking activity. The setting features rustic wooden tables, warm sunlight filtering through green foliage, and baskets of bright orange mandarins. The atmosphere is serene, earthy, and highly tactile, capturing a premium cultural experience." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDQshS1DgXQBZ8PDnZqGaKR3k2DfPFAAyz462RBblqR6Enz3S6TiWDmWtht6Kp8u7nw4qrtBpWhUYBzmvIR-MvILiZMWKfaZrsQ5ahmu5XJyIlUPAv50YWUoCggd2T-MPv7aHkog6_ULXGT9t05UBv-Kh2Ma44QxqAu9WdoJ1AblZf17EBnvIyZKJrQTTh3Od1eUWJv0WCFzePp23ZNqVyk70XplGRTjaNifQwgxYZ0fDOBOsap6MO4QBIGBeFs4yLANiLMYL9Oj8k')"></div>
+<div class="absolute inset-0 bg-on-surface/40 z-10"></div>
+<button onclick="location.href='tanzone.html'" class="cursor-pointer relative z-20 w-full max-w-4xl aspect-[2/1] rounded-[48px] glass-panel border-white/30 flex items-center justify-center overflow-hidden group hover:bg-surface/20 transition-colors duration-500">
+<div class="flex flex-col items-center text-white">
+<span class="material-symbols-outlined text-[120px] mb-md group-hover:scale-110 transition-transform duration-500" style="font-variation-settings: 'FILL' 1;">spa</span>
+<h2 class="text-display-lg font-display-lg text-white drop-shadow-lg">
+                        제주 감귤 체험존
+                    </h2>
+</div>
+</button>
+</section>
+</main>
+</body></html>

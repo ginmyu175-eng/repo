@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI 감귤 아트 콘테스트 🎨</title>
+<link rel="stylesheet" href="../assets/style.css" />
+<style>
+  .stage { max-width: 940px; margin: 0 auto; }
+  .maker { display:grid; grid-template-columns: 1fr; gap:20px; }
+  .prompt-row { display:flex; gap:10px; flex-wrap:wrap; }
+  .prompt-row input {
+    flex:1; min-width:220px; font-family:inherit; font-size:16px; padding:14px 18px;
+    border:2px solid #ffe0bf; border-radius:14px; outline:none;
+  }
+  .prompt-row input:focus { border-color: var(--orange); }
+  .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .chip { background:#fff3e2; border:none; cursor:pointer; font-family:inherit; font-size:13px; font-weight:700; color:var(--orange-deep); padding:7px 14px; border-radius:999px; transition:.15s; }
+  .chip:hover { background:var(--orange-soft); color:#fff; }
+  .preview-box { display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; }
+  #artCanvas { width:320px; height:320px; border-radius:20px; box-shadow:var(--shadow); background:#fff; }
+  .preview-side { flex:1; min-width:220px; }
+  .genlabel { font-weight:800; color:var(--orange-deep); }
+  .gallery { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:16px; margin-top:14px; }
+  .art-item { background:#fff; border-radius:18px; overflow:hidden; box-shadow:var(--shadow-soft); display:flex; flex-direction:column; }
+  .art-item img { width:100%; aspect-ratio:1; object-fit:cover; display:block; background:#fff3e2; }
+  .art-meta { padding:12px 14px; }
+  .art-meta .p { font-weight:700; font-size:14px; margin:0 0 4px; }
+  .art-meta .a { font-size:12px; color:var(--ink-soft); margin:0 0 10px; }
+  .vote-row { display:flex; align-items:center; gap:8px; }
+  .vote-btn { border:none; cursor:pointer; background:linear-gradient(135deg,var(--tangerine),var(--orange-deep)); color:#fff; font-family:inherit; font-weight:800; font-size:13px; padding:7px 14px; border-radius:999px; }
+  .vote-btn.voted { background:#ccc; cursor:default; }
+  .vcount { font-weight:800; color:var(--orange-deep); }
+  .rank { font-size:12px; font-weight:800; color:#fff; background:var(--leaf-deep); padding:2px 8px; border-radius:999px; }
+  .empty { text-align:center; color:var(--ink-soft); padding:30px; }
+  .spin { display:inline-block; animation:sp 1s linear infinite; } @keyframes sp{to{transform:rotate(360deg)}}
+  .sort-row{ display:flex; gap:8px; margin: 6px 0 0; }
+  .sort-row button{ font-size:13px; padding:6px 14px; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="logo" href="../index.html"><span class="dot"></span>감귤 체험존</a>
+    <a class="back" href="../index.html">← 메인으로</a>
+  </div>
+
+  <header class="page-head">
+    <div class="emoji">🎨</div>
+    <h1>AI 감귤 아트 콘테스트</h1>
+    <p>주제어를 입력해 나만의 감귤 아트를 생성하고, 갤러리에 등록해 실시간 투표에 도전하세요!</p>
+  </header>
+
+  <main class="wrap stage">
+    <section class="card maker">
+      <div>
+        <div class="genlabel" style="margin-bottom:8px">🖌️ 어떤 감귤 아트를 만들고 싶나요?</div>
+        <div class="prompt-row">
+          <input id="prompt" placeholder="예: 귤을 들고 있는 랫서팬더, 노을 지는 감귤밭 …" maxlength="40" />
+          <button class="btn" id="genBtn" onclick="generate()">✨ 생성하기</button>
+        </div>
+        <div class="chips" id="chips"></div>
+      </div>
+
+      <div class="preview-box">
+        <canvas id="artCanvas" width="512" height="512"></canvas>
+        <div class="preview-side">
+          <p class="genlabel" id="curPrompt">프롬프트를 입력하고 '생성하기'를 눌러보세요 🍊</p>
+          <p style="color:var(--ink-soft);font-size:14px">AI가 주제어를 해석해 색감과 형태를 조합한 추상 감귤 아트를 만들어드려요. 마음에 들 때까지 여러 번 생성할 수 있어요!</p>
+          <div class="row" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+            <input id="artist" placeholder="닉네임 (선택)" maxlength="12" style="flex:1;min-width:120px;font-family:inherit;font-size:14px;padding:10px 14px;border:2px solid #ffe0bf;border-radius:12px;outline:none" />
+          </div>
+          <button class="btn leaf mt" id="submitBtn" onclick="submitArt()" disabled>🏆 갤러리에 등록하고 투표받기</button>
+          <button class="btn ghost mt" id="dlBtn" onclick="downloadArt()" disabled>💾 이미지 저장</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card mt">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <h2 style="margin:0;color:var(--orange-deep)">🖼️ 실시간 콘테스트 갤러리</h2>
+        <div class="sort-row">
+          <button class="btn ghost" id="sortVote" onclick="setSort('vote')">🔥 인기순</button>
+          <button class="btn ghost" id="sortNew" onclick="setSort('new')">🆕 최신순</button>
+        </div>
+      </div>
+      <div class="gallery" id="gallery"></div>
+    </section>
+  </main>
+
+  <footer class="site">🍊 제주 감귤 체험존 · AI 감귤 아트 콘테스트 · 데이터는 브라우저에 저장됩니다</footer>
+
+  <script src="../assets/common.js"></script>
+  <script>
+    const KEY = 'gamgyul_art_gallery';
+    const VOTEKEY = 'gamgyul_art_voted';
+    const canvas = document.getElementById('artCanvas');
+    const cx = canvas.getContext('2d');
+    let currentImg = null, currentPrompt = '';
+    let sortMode = 'vote';
+
+    const examples = ["귤을 들고 있는 랫서팬더","노을 지는 감귤밭","눈 내리는 제주 귤나무","우주를 나는 귤","감귤 아이스크림","한복 입은 귤 캐릭터","비 오는 날 감귤 카페","별이 빛나는 귤밭"];
+    document.getElementById('chips').innerHTML = examples.map(e=>`<button class="chip" onclick="fill('${e}')">${e}</button>`).join('');
+    function fill(t){ document.getElementById('prompt').value = t; }
+
+    // 문자열 → 시드
+    function hash(str){ let h=2166136261; for(let i=0;i<str.length;i++){ h^=str.charCodeAt(i); h=Math.imul(h,16777619);} return h>>>0; }
+    function rng(seed){ let s=seed>>>0; return ()=>{ s^=s<<13; s^=s>>>17; s^=s<<5; s>>>=0; return s/4294967296; }; }
+
+    function generate(){
+      const p = document.getElementById('prompt').value.trim();
+      if(!p){ toast('주제어를 입력해주세요! 🍊'); return; }
+      currentPrompt = p;
+      document.getElementById('curPrompt').innerHTML = `<span class="spin">🍊</span> "${p}" 생성 중...`;
+      const btn = document.getElementById('genBtn'); btn.disabled=true;
+      // 생성 연출용 약간의 딜레이
+      setTimeout(()=>{
+        drawArt(p, hash(p + '|' + Math.floor(Math.random()*99999)));
+        currentImg = canvas.toDataURL('image/png');
+        document.getElementById('curPrompt').textContent = `"${p}" 🍊 완성!`;
+        document.getElementById('submitBtn').disabled=false;
+        document.getElementById('dlBtn').disabled=false;
+        btn.disabled=false;
+      }, 650);
+    }
+
+    function drawArt(prompt, seed){
+      const r = rng(seed);
+      const W=canvas.width, H=canvas.height;
+      // 프롬프트 키워드로 팔레트 선택
+      const warm = /노을|가을|저녁|귤|주황|따뜻/.test(prompt);
+      const cool = /밤|겨울|눈|우주|별|비|바다/.test(prompt);
+      const palettes = warm
+        ? [['#ffb347','#ff7e1a','#ffd98a'],['#ff9a3c','#ffcf6b','#e85d04']]
+        : cool
+        ? [['#3a4a7a','#6b8cce','#ffd98a'],['#1b263b','#415a77','#ffb347']]
+        : [['#ffcf6b','#ff9f43','#4caf50'],['#ffe0a3','#ff8c1a','#66bb6a']];
+      const pal = palettes[Math.floor(r()*palettes.length)];
+
+      // 배경 그라데이션
+      const g = cx.createLinearGradient(0,0,0,H);
+      g.addColorStop(0, pal[0]); g.addColorStop(1, pal[1]);
+      cx.fillStyle=g; cx.fillRect(0,0,W,H);
+
+      // 부드러운 블롭들
+      for(let i=0;i<40;i++){
+        cx.globalAlpha = 0.05 + r()*0.15;
+        cx.fillStyle = pal[Math.floor(r()*pal.length)];
+        const x=r()*W, y=r()*H, rad=20+r()*140;
+        cx.beginPath(); cx.arc(x,y,rad,0,Math.PI*2); cx.fill();
+      }
+      cx.globalAlpha=1;
+
+      // 태양/달
+      if(warm || cool){
+        cx.globalAlpha=0.85;
+        cx.fillStyle = warm ? '#fff2c2' : '#eef2ff';
+        const sx=W*(0.2+r()*0.6), sy=H*(0.15+r()*0.25), sr=40+r()*40;
+        const sg=cx.createRadialGradient(sx,sy,0,sx,sy,sr*2);
+        sg.addColorStop(0, cx.fillStyle); sg.addColorStop(1,'rgba(255,255,255,0)');
+        cx.fillStyle=sg; cx.beginPath(); cx.arc(sx,sy,sr*2,0,Math.PI*2); cx.fill();
+        cx.globalAlpha=1;
+      }
+
+      // 별
+      if(cool){ cx.fillStyle='#fff'; for(let i=0;i<60;i++){ cx.globalAlpha=r(); cx.fillRect(r()*W, r()*H*0.6, r()*2.5, r()*2.5);} cx.globalAlpha=1; }
+
+      // 중앙 귤 오브젝트들
+      const n = 3 + Math.floor(r()*5);
+      for(let i=0;i<n;i++){
+        const x=W*(0.2+r()*0.6), y=H*(0.45+r()*0.4), rad=30+r()*70;
+        // 귤 몸통
+        const og=cx.createRadialGradient(x-rad*0.3,y-rad*0.3,rad*0.1,x,y,rad);
+        og.addColorStop(0,'#ffcf6b'); og.addColorStop(0.6,'#ff8c1a'); og.addColorStop(1,'#e2670a');
+        cx.fillStyle=og; cx.beginPath(); cx.arc(x,y,rad,0,Math.PI*2); cx.fill();
+        // 질감 점
+        cx.fillStyle='rgba(200,90,0,.25)';
+        for(let k=0;k<rad*0.5;k++){ const a=r()*Math.PI*2, rr=r()*rad*0.9; cx.beginPath(); cx.arc(x+Math.cos(a)*rr,y+Math.sin(a)*rr,1.2,0,Math.PI*2); cx.fill(); }
+        // 잎
+        cx.fillStyle='#4caf50'; cx.save(); cx.translate(x, y-rad); cx.rotate(-0.4+r()*0.8);
+        cx.beginPath(); cx.ellipse(0,-6,rad*0.28,rad*0.12,0,0,Math.PI*2); cx.fill(); cx.restore();
+        // 하이라이트
+        cx.fillStyle='rgba(255,255,255,.4)'; cx.beginPath(); cx.arc(x-rad*0.35,y-rad*0.35,rad*0.2,0,Math.PI*2); cx.fill();
+      }
+
+      // 하단 언덕/그림자
+      cx.fillStyle=pal[2]; cx.globalAlpha=0.5;
+      cx.beginPath(); cx.moveTo(0,H); cx.quadraticCurveTo(W*0.5,H*(0.7+r()*0.15),W,H); cx.lineTo(W,H); cx.fill();
+      cx.globalAlpha=1;
+
+      // 프레임 텍스트
+      cx.fillStyle='rgba(255,255,255,.85)'; cx.font='bold 20px sans-serif'; cx.textAlign='left';
+      cx.fillText('🍊 '+prompt.slice(0,16), 18, H-20);
+    }
+
+    function submitArt(){
+      if(!currentImg){ return; }
+      const artist = document.getElementById('artist').value.trim() || '익명의 화가';
+      const list = load();
+      list.push({ id:'a'+Date.now()+Math.floor(Math.random()*1000), prompt:currentPrompt, artist, img:currentImg, votes:0, t:Date.now() });
+      save(list);
+      toast('갤러리에 등록됐어요! 🎉 투표를 받아보세요');
+      document.getElementById('submitBtn').disabled=true;
+      renderGallery();
+      document.getElementById('gallery').scrollIntoView({behavior:'smooth'});
+    }
+
+    function downloadArt(){
+      if(!currentImg) return;
+      downloadDataURL(currentImg, '감귤아트_' + Date.now() + '.png');
+    }
+
+    function load(){ try{ return JSON.parse(localStorage.getItem(KEY)||'[]'); }catch(e){ return []; } }
+    function save(l){ localStorage.setItem(KEY, JSON.stringify(l)); }
+    function votedList(){ try{ return JSON.parse(localStorage.getItem(VOTEKEY)||'[]'); }catch(e){ return []; } }
+
+    function vote(id){
+      const voted = votedList();
+      if(voted.includes(id)){ toast('이미 투표한 작품이에요!'); return; }
+      const list = load();
+      const item = list.find(x=>x.id===id); if(!item) return;
+      item.votes++; save(list);
+      voted.push(id); localStorage.setItem(VOTEKEY, JSON.stringify(voted));
+      toast('투표 완료! 🍊 +1');
+      renderGallery();
+    }
+
+    function setSort(m){ sortMode=m;
+      document.getElementById('sortVote').classList.toggle('on', m==='vote');
+      renderGallery();
+    }
+
+    function renderGallery(){
+      const wrap = document.getElementById('gallery');
+      let list = load();
+      if(list.length===0){ wrap.innerHTML = '<div class="empty">아직 등록된 작품이 없어요.<br/>첫 번째 감귤 아트의 주인공이 되어보세요! 🍊</div>'; return; }
+      const voted = votedList();
+      list = list.slice();
+      if(sortMode==='vote') list.sort((a,b)=> b.votes-a.votes || b.t-a.t);
+      else list.sort((a,b)=> b.t-a.t);
+
+      wrap.innerHTML = list.map((x,i)=>{
+        const isVoted = voted.includes(x.id);
+        const rank = sortMode==='vote' && i<3 && x.votes>0 ? `<span class="rank">${['🥇','🥈','🥉'][i]} ${i+1}위</span>` : '';
+        return `<div class="art-item">
+          <img src="${x.img}" alt="${x.prompt}" />
+          <div class="art-meta">
+            <p class="p">🍊 ${escapeHtml(x.prompt)} ${rank}</p>
+            <p class="a">by ${escapeHtml(x.artist)}</p>
+            <div class="vote-row">
+              <button class="vote-btn ${isVoted?'voted':''}" ${isVoted?'':`onclick="vote('${x.id}')"`}>${isVoted?'✔ 투표함':'👍 투표'}</button>
+              <span class="vcount">${x.votes} 표</span>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+    // 초기 렌더 + 다른 탭 동기화(실시간 느낌)
+    document.getElementById('sortVote').classList.add('on');
+    renderGallery();
+    window.addEventListener('storage', (e)=>{ if(e.key===KEY) renderGallery(); });
+  </script>
+</body>
+</html>

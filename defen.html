@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🗿 돌하르방 좀비 디펜스 — 제주 감귤 서바이버</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#7ec8e3; font-family:'Trebuchet MS', 'Malgun Gothic', sans-serif; }
+  canvas { display:block; }
+  #hud {
+    position:fixed; top:14px; left:50%; transform:translateX(-50%);
+    display:flex; gap:10px; z-index:10; pointer-events:none; flex-wrap:wrap; justify-content:center;
+  }
+  .pill {
+    background:rgba(255,255,255,0.88); border-radius:999px; padding:7px 16px;
+    font-size:18px; font-weight:bold; color:#2b4a2f; box-shadow:0 3px 10px rgba(0,0,0,0.18);
+    border:3px solid #ff9b2d; white-space:nowrap;
+  }
+  #timePill  { border-color:#3b8ecf; color:#1e4a6b; }
+  #killPill  { border-color:#8a5fbf; color:#4a2b6b; }
+  #wavePill  { border-color:#c94f3d; color:#7a2418; }
+  #xpWrap {
+    position:fixed; top:64px; left:50%; transform:translateX(-50%);
+    width:260px; height:18px; border-radius:999px; background:rgba(255,255,255,0.75);
+    border:3px solid #57b34a; overflow:hidden; z-index:10; pointer-events:none;
+  }
+  #xpBar { height:100%; width:0%; background:linear-gradient(90deg,#7ddc5f,#3fa332); transition:width .15s; }
+  #xpText {
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:bold; color:#1d4a17;
+  }
+  #msg {
+    position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:rgba(20,40,60,0.55); z-index:20; color:#fff; text-align:center; padding:20px;
+  }
+  #msg h1 { font-size:42px; margin-bottom:10px; text-shadow:0 3px 8px rgba(0,0,0,0.4); }
+  #msg p { font-size:16px; line-height:1.75; margin-bottom:22px; max-width:460px; }
+  #msg button {
+    font-size:22px; font-weight:bold; padding:14px 40px; border:none; border-radius:999px;
+    background:#ff9b2d; color:#fff; cursor:pointer; box-shadow:0 5px 0 #d97a12;
+  }
+  #msg button:active { transform:translateY(3px); box-shadow:0 2px 0 #d97a12; }
+  #toast {
+    position:fixed; top:96px; left:50%; transform:translateX(-50%);
+    font-size:22px; font-weight:bold; color:#fff; text-shadow:0 2px 6px rgba(0,0,0,0.5);
+    opacity:0; transition:opacity .3s; z-index:15; pointer-events:none;
+  }
+  /* 레벨업 카드 */
+  #levelup {
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(10,25,15,0.45); z-index:25;
+  }
+  #levelCard {
+    background:#fffef2; border:5px solid #57b34a; border-radius:22px; padding:28px 44px;
+    text-align:center; box-shadow:0 10px 40px rgba(0,0,0,0.35);
+    animation:pop .35s cubic-bezier(.2,1.6,.4,1);
+  }
+  @keyframes pop { from { transform:scale(0.4); opacity:0; } to { transform:scale(1); opacity:1; } }
+  #levelCard .lv { font-size:15px; font-weight:bold; color:#57b34a; letter-spacing:2px; }
+  #levelCard .ic { font-size:56px; margin:10px 0; }
+  #levelCard .nm { font-size:24px; font-weight:bold; color:#2b4a2f; }
+  #levelCard .ds { font-size:14px; color:#6a7a6a; margin-top:6px; }
+  #stick {
+    position:fixed; bottom:26px; left:26px; width:120px; height:120px; border-radius:50%;
+    background:rgba(255,255,255,0.25); border:2px solid rgba(255,255,255,0.5); z-index:12;
+    touch-action:none; display:none;
+  }
+  #knob {
+    position:absolute; left:38px; top:38px; width:44px; height:44px; border-radius:50%;
+    background:rgba(255,255,255,0.75);
+  }
+  #fireBtn {
+    position:fixed; bottom:40px; right:32px; width:92px; height:92px; border-radius:50%;
+    background:rgba(255,155,45,0.85); border:3px solid #fff; z-index:12; display:none;
+    font-size:40px; align-items:center; justify-content:center; touch-action:none;
+    box-shadow:0 5px 0 rgba(0,0,0,0.25); user-select:none; -webkit-user-select:none;
+  }
+  @media (pointer:coarse) { #stick { display:block; } #fireBtn { display:flex; } }
+  .hidden { display:none !important; }
+
+  /* ===== 클리어 시 이름/전화번호 입력 폼 ===== */
+  #clearForm {
+    position:fixed; inset:0; z-index:40; display:none;
+    align-items:center; justify-content:center;
+    background:rgba(15,35,25,0.72); padding:20px;
+  }
+  #clearForm .cfBox {
+    background:#fffef2; border:5px solid #ff9b2d; border-radius:22px;
+    padding:26px 30px; width:100%; max-width:340px; text-align:center;
+    box-shadow:0 12px 44px rgba(0,0,0,0.4);
+    font-family:'Trebuchet MS','Malgun Gothic',sans-serif;
+  }
+  #clearForm h2 { font-size:26px; color:#2b4a2f; margin-bottom:4px; }
+  #clearForm .sub { font-size:14px; color:#c94f3d; font-weight:bold; margin-bottom:16px; }
+  #clearForm label { display:block; text-align:left; font-size:13px; color:#4a6a4a; font-weight:bold; margin-top:10px; }
+  #clearForm input {
+    width:100%; box-sizing:border-box; margin-top:5px; padding:11px 12px;
+    font-size:16px; border:2px solid #57b34a; border-radius:12px; outline:none;
+    font-family:inherit; color:#2b4a2f; background:#f7fff2;
+  }
+  #clearForm input:focus { border-color:#ff9b2d; }
+  #clearForm button {
+    margin-top:18px; width:100%; padding:13px; font-size:19px; font-weight:bold;
+    border:none; border-radius:999px; background:#ff9b2d; color:#fff; cursor:pointer;
+    box-shadow:0 5px 0 #d97a12;
+  }
+  #clearForm button:active { transform:translateY(3px); box-shadow:0 2px 0 #d97a12; }
+  #clearForm button:disabled { background:#b9b9b9; box-shadow:0 5px 0 #8a8a8a; cursor:default; }
+  #cfMsg { min-height:18px; margin-top:12px; font-size:13px; font-weight:bold; color:#3b8ecf; }
+</style>
+</head>
+<body>
+<div id="hud">
+  <div class="pill" id="hpPill">❤️❤️❤️❤️❤️</div>
+  <div class="pill" id="timePill">⏱ 0</div>
+  <div class="pill" id="killPill">🗿 0</div>
+  <div class="pill" id="wavePill">🌊 1</div>
+</div>
+<div id="xpWrap"><div id="xpBar"></div><div id="xpText">EXP 0 / 5</div></div>
+<div id="toast"></div>
+<div id="levelup" class="hidden">
+  <div id="levelCard">
+    <div class="lv">LEVEL UP!</div>
+    <div class="ic">🥕</div>
+    <div class="nm">업그레이드</div>
+    <div class="ds"></div>
+  </div>
+</div>
+<div id="stick"><div id="knob"></div></div>
+<div id="fireBtn">🍊</div>
+<div id="msg">
+  <h1>🗿 돌하르방 좀비 디펜스</h1>
+  <p>돌하르방 좀비 떼로부터 최대한 오래 살아남으세요!<br><br>
+  🏇 이동: 방향키 / WASD (모바일: 조이스틱)<br>
+  🍊 Z키: 바라보는 방향으로 감귤 발사 (모바일: 🍊버튼)<br>
+  🥕 당근칼날이 자동으로 주위를 회전하며 적을 벱니다<br>
+  💚 적을 잡으면 경험치가 떨어져요 — 10개 모으면 랜덤 업그레이드!<br>
+  🧪 가끔 나타나는 포션으로 체력 회복 (하트 5개)<br>
+  🌊 10초마다 몰려오는 돌하르방이 늘어납니다…</p>
+  <button id="startBtn">게임 시작</button>
+</div>
+
+<!-- 돌하르방 30마리 처치 클리어 시 이름/전화번호 입력 -->
+<div id="clearForm">
+  <div class="cfBox">
+    <h2>🎉 클리어!</h2>
+    <div class="sub">돌하르방 30마리를 물리쳤어요!</div>
+    <label>이름<input id="cfName" type="text" maxlength="20" autocomplete="off" placeholder="이름을 입력하세요"></label>
+    <label>전화번호<input id="cfPhone" type="tel" maxlength="20" autocomplete="off" placeholder="010-0000-0000"></label>
+    <button id="cfSubmit">기록하기</button>
+    <div id="cfMsg"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* =========================================================================
+   ▼▼▼ 구글 스프레드시트 연동 설정 ▼▼▼
+   돌하르방을 30마리 처치하면 클리어 → 이름·전화번호를 입력받아
+   아래 exec 주소로 전송하고 '이름 · 전화번호 · 게임이름' 으로 기록합니다.
+   Apps Script 배포 후 받은 웹앱 exec 주소를 아래 따옴표 안에 붙여넣으세요.
+   예)  const SHEET_URL = 'https://script.google.com/macros/s/AKfy...../exec';
+   비워두면(빈 문자열) 폼은 뜨지만 기록 전송은 건너뜁니다.
+   ========================================================================= */
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbyhfhI5AjkJL8rZ2w3K3lDBYYzu-NabJ_wbmWAyxK1QlB_uNRSfGLosNCIsozrYVE73jQ/exec';
+const GAME_NAME = '돌하르방 좀비 디펜스';
+const CLEAR_KILLS = 30;   // 클리어에 필요한 처치 수
+/* ========================================================================= */
+
+// ---------- 기본 세팅 ----------
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x7ec8e3);
+scene.fog = new THREE.Fog(0x9fd8ee, 90, 240);
+
+const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 400);
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const sun = new THREE.DirectionalLight(0xfff4d6, 1.15);
+sun.position.set(60, 90, 30);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -110; sun.shadow.camera.right = 110;
+sun.shadow.camera.top = 110; sun.shadow.camera.bottom = -110;
+scene.add(sun);
+scene.add(new THREE.AmbientLight(0xbfe3f2, 0.8));
+
+// ▶ [요청 1] 맵 확장: 섬 반지름 52 → 90
+const ISLAND_R = 90;
+
+// ---------- 바다 ----------
+const seaGeo = new THREE.PlaneGeometry(900, 900, 50, 50);
+const seaMat = new THREE.MeshPhongMaterial({ color:0x1e7fb8, shininess:90, transparent:true, opacity:0.95 });
+const sea = new THREE.Mesh(seaGeo, seaMat);
+sea.rotation.x = -Math.PI/2;
+sea.position.y = -0.6;
+scene.add(sea);
+const seaBase = seaGeo.attributes.position.array.slice();
+
+// ---------- 섬 지형 ----------
+const island = new THREE.Group();
+scene.add(island);
+
+const beach = new THREE.Mesh(
+  new THREE.CylinderGeometry(ISLAND_R+5, ISLAND_R+8, 1.2, 56),
+  new THREE.MeshLambertMaterial({ color:0xf2dfae })
+);
+beach.position.y = -0.55; beach.receiveShadow = true;
+island.add(beach);
+
+const grass = new THREE.Mesh(
+  new THREE.CylinderGeometry(ISLAND_R, ISLAND_R+4, 1.4, 56),
+  new THREE.MeshLambertMaterial({ color:0x6cb04a })
+);
+grass.position.y = 0; grass.receiveShadow = true;
+island.add(grass);
+
+// ---------- 장애물 목록 (이동을 막는 원형 충돌체) ----------
+// ▶ [요청 1] 장애물: 한라산 / 현무암 바위 / 제주 돌담 / 감귤나무
+const obstacles = [];   // { x, z, r }
+
+// ---------- 한라산 ----------
+const halla = new THREE.Group();
+const hallaBody = new THREE.Mesh(
+  new THREE.ConeGeometry(16, 22, 32),
+  new THREE.MeshLambertMaterial({ color:0x4f7a3d })
+);
+hallaBody.position.y = 11; hallaBody.castShadow = true;
+halla.add(hallaBody);
+const hallaTop = new THREE.Mesh(
+  new THREE.ConeGeometry(5.2, 7.5, 32),
+  new THREE.MeshLambertMaterial({ color:0xf5f5f5 })
+);
+hallaTop.position.y = 18.6;
+halla.add(hallaTop);
+const crater = new THREE.Mesh(
+  new THREE.CylinderGeometry(2.2, 2.2, 0.6, 24),
+  new THREE.MeshLambertMaterial({ color:0x3f7fae })
+);
+crater.position.y = 22.1;
+halla.add(crater);
+halla.position.set(0, 0.7, -48);
+island.add(halla);
+obstacles.push({ x:0, z:-48, r:16 });
+
+// ---------- 현무암 바위 장애물 ----------
+const rockMat = new THREE.MeshLambertMaterial({ color:0x4c4c52 });
+function rock(x, z, s) {
+  const g = new THREE.Group();
+  for (let i=0;i<3;i++){
+    const r = new THREE.Mesh(new THREE.DodecahedronGeometry(s*(0.7+Math.random()*0.5), 0), rockMat);
+    r.position.set((Math.random()-0.5)*s*1.2, s*0.4, (Math.random()-0.5)*s*1.2);
+    r.rotation.set(Math.random()*3, Math.random()*3, Math.random()*3);
+    r.castShadow = true; g.add(r);
+  }
+  g.position.set(x, 0.7, z);
+  island.add(g);
+  obstacles.push({ x, z, r: s*1.5 });
+}
+rock(-32, 20, 2.4); rock(38, -18, 2.8); rock(-50, -30, 2.2); rock(22, 48, 2.6);
+rock(55, 25, 2.3); rock(-15, 60, 2.5); rock(-62, 15, 2.2); rock(48, -55, 2.4);
+
+// ---------- 제주 돌담 (여러 개의 원 충돌체로 근사) ----------
+function stoneWall(x1, z1, x2, z2) {
+  const len = Math.hypot(x2-x1, z2-z1);
+  const n = Math.max(2, Math.round(len/3));
+  for (let i=0;i<=n;i++){
+    const t = i/n;
+    const x = x1+(x2-x1)*t, z = z1+(z2-z1)*t;
+    const g = new THREE.Group();
+    for (let k=0;k<3;k++){
+      const s = new THREE.Mesh(new THREE.DodecahedronGeometry(0.55+Math.random()*0.25, 0), rockMat);
+      s.position.set((Math.random()-0.5)*0.8, 0.4+k*0.62, (Math.random()-0.5)*0.8);
+      s.rotation.set(Math.random()*3, Math.random()*3, Math.random()*3);
+      s.castShadow = k===2; g.add(s);
+    }
+    g.position.set(x, 0.7, z);
+    island.add(g);
+    obstacles.push({ x, z, r: 1.3 });
+  }
+}
+stoneWall(-45, 45, -25, 38);
+stoneWall(30, 15, 45, 5);
+stoneWall(-20, -25, -5, -35);
+stoneWall(60, -20, 68, -38);
+stoneWall(-70, -8, -58, -20);
+
+// ---------- 구름 ----------
+const clouds = [];
+function makeCloud(x, y, z, s) {
+  const g = new THREE.Group();
+  const m = new THREE.MeshLambertMaterial({ color:0xffffff });
+  [[0,0,0,2.2],[1.8,0.3,0.4,1.6],[-1.8,0.2,-0.3,1.5],[0.6,0.9,0,1.3]].forEach(([a,b,c,r])=>{
+    const p = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 10), m);
+    p.position.set(a,b,c); g.add(p);
+  });
+  g.position.set(x,y,z); g.scale.setScalar(s);
+  scene.add(g); clouds.push(g);
+}
+makeCloud(-50, 36, -40, 1.5); makeCloud(40, 40, -15, 1.2); makeCloud(0, 38, 45, 1.7); makeCloud(65, 33, 30, 1.0);
+
+// ---------- 유채꽃밭 (장식) ----------
+function flowerPatch(cx, cz, count, radius) {
+  const geo = new THREE.SphereGeometry(0.22, 6, 6);
+  const yellow = new THREE.MeshLambertMaterial({ color:0xffd93b });
+  const stemMat = new THREE.MeshLambertMaterial({color:0x4a8a3a});
+  for (let i=0;i<count;i++){
+    const a = Math.random()*Math.PI*2, r = Math.sqrt(Math.random())*radius;
+    const f = new THREE.Mesh(geo, yellow);
+    f.position.set(cx+Math.cos(a)*r, 0.85+Math.random()*0.15, cz+Math.sin(a)*r);
+    island.add(f);
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.7,4), stemMat);
+    stem.position.set(f.position.x, 0.4, f.position.z);
+    island.add(stem);
+  }
+}
+flowerPatch(-45, 25, 30, 7);
+flowerPatch(50, -8, 28, 6);
+flowerPatch(12, 55, 25, 5);
+flowerPatch(-60, -45, 22, 5);
+
+// ---------- 야자수 (장식, 통과 가능) ----------
+function palm(x, z) {
+  const g = new THREE.Group();
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.42,5,8), new THREE.MeshLambertMaterial({color:0x9a6b3f}));
+  trunk.position.y = 2.5; trunk.castShadow = true; g.add(trunk);
+  const leafMat = new THREE.MeshLambertMaterial({ color:0x2f8f4e, side:THREE.DoubleSide });
+  for (let i=0;i<6;i++){
+    const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.5, 3.2, 4), leafMat);
+    leaf.position.set(1.4, 5.1, 0);
+    leaf.rotation.set(0, (i/6)*Math.PI*2, Math.PI/2.6);
+    g.add(leaf);
+  }
+  g.position.set(x, 0.7, z);
+  island.add(g);
+}
+[[-70,18],[-58,-38],[62,28],[75,-8],[35,-68],[-20,-75],[-80,-5],[55,52],[-38,68],[10,80]].forEach(([x,z])=>palm(x,z));
+
+// ---------- 감귤나무 (장애물) ----------
+function tangerineTree(x, z) {
+  const g = new THREE.Group();
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.35,1.6,7), new THREE.MeshLambertMaterial({color:0x7a5230}));
+  trunk.position.y = 0.8; g.add(trunk);
+  const crown = new THREE.Mesh(new THREE.SphereGeometry(1.5, 10, 10), new THREE.MeshLambertMaterial({color:0x3a7d3a}));
+  crown.position.y = 2.3; crown.castShadow = true; g.add(crown);
+  const oMat = new THREE.MeshLambertMaterial({ color:0xff8c1a });
+  for (let i=0;i<7;i++){
+    const o = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), oMat);
+    const a = Math.random()*Math.PI*2, b = Math.random()*Math.PI;
+    o.position.set(Math.sin(b)*Math.cos(a)*1.4, 2.3+Math.cos(b)*1.2, Math.sin(b)*Math.sin(a)*1.4);
+    g.add(o);
+  }
+  g.position.set(x, 0.7, z);
+  island.add(g);
+  obstacles.push({ x, z, r: 1.2 });
+}
+[[-30,-52],[-52,-8],[25,35],[52,32],[-14,42],[42,-42],[-58,38],[15,-20],[70,10],[-25,8]].forEach(([x,z])=>tangerineTree(x,z));
+
+// ---------- 플레이어: 제주 조랑말 + 기수 ----------
+const pony = new THREE.Group();
+const ponyBody = new THREE.Group();
+pony.add(ponyBody);
+
+const bodyMat = new THREE.MeshLambertMaterial({ color:0x9c6b3c });
+const darkMat = new THREE.MeshLambertMaterial({ color:0x4a3220 });
+const skinMat = new THREE.MeshLambertMaterial({ color:0xf2c49b });
+
+const torso = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.95, 2.0), bodyMat);
+torso.position.y = 1.15; torso.castShadow = true; ponyBody.add(torso);
+const chest = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.8, 0.55), bodyMat);
+chest.position.set(0, 1.1, 1.05); chest.castShadow = true; ponyBody.add(chest);
+const rump = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.8, 0.5), bodyMat);
+rump.position.set(0, 1.12, -1.0); ponyBody.add(rump);
+
+const headGrp = new THREE.Group();
+headGrp.position.set(0, 1.5, 0.85);
+ponyBody.add(headGrp);
+const neck = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.05, 0.55), bodyMat);
+neck.position.set(0, 0.45, 0.2); neck.rotation.x = 0.3; neck.castShadow = true; headGrp.add(neck);
+const ponyHead = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.6, 0.95), bodyMat);
+ponyHead.position.set(0, 0.95, 0.5); ponyHead.castShadow = true; headGrp.add(ponyHead);
+const muzzle = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.42, 0.42), new THREE.MeshLambertMaterial({color:0xb98a55}));
+muzzle.position.set(0, 0.84, 1.02); headGrp.add(muzzle);
+const mane = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.0, 0.3), darkMat);
+mane.position.set(0, 0.55, -0.1); mane.rotation.x = 0.3; headGrp.add(mane);
+const forelock = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.25, 0.2), darkMat);
+forelock.position.set(0, 1.28, 0.6); headGrp.add(forelock);
+[-0.17, 0.17].forEach(dx=>{
+  const ear = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.32, 6), darkMat);
+  ear.position.set(dx, 1.38, 0.3); headGrp.add(ear);
+});
+[-0.29, 0.29].forEach(dx=>{
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), new THREE.MeshLambertMaterial({color:0x111111}));
+  eye.position.set(dx, 1.06, 0.78); headGrp.add(eye);
+});
+
+const tailGrp = new THREE.Group();
+tailGrp.position.set(0, 1.55, -1.05);
+tailGrp.rotation.x = 0.45;
+ponyBody.add(tailGrp);
+const tailMesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.85, 0.2), darkMat);
+tailMesh.position.y = -0.35; tailGrp.add(tailMesh);
+
+const legs = [];
+const hoofMat = new THREE.MeshLambertMaterial({ color:0x2b2018 });
+[[-0.36,0.72,0],[0.36,0.72,0.5],[-0.36,-0.72,Math.PI*0.9],[0.36,-0.72,Math.PI*0.9+0.5]].forEach(([dx,dz,off])=>{
+  const hip = new THREE.Group();
+  hip.position.set(dx, 1.0, dz);
+  const upper = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.6, 0.32), bodyMat);
+  upper.position.y = -0.25; upper.castShadow = true; hip.add(upper);
+  const knee = new THREE.Group(); knee.position.y = -0.52; hip.add(knee);
+  const lower = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.5, 0.22), darkMat);
+  lower.position.y = -0.2; knee.add(lower);
+  const hoof = new THREE.Mesh(new THREE.BoxGeometry(0.23, 0.14, 0.27), hoofMat);
+  hoof.position.set(0, -0.44, 0.02); knee.add(hoof);
+  ponyBody.add(hip);
+  legs.push({ hip, knee, off, front: dz > 0 });
+});
+
+// ---------- 기수 ----------
+const rider = new THREE.Group();
+const riderBaseY = 1.86;
+rider.position.set(0, riderBaseY, -0.15);
+ponyBody.add(rider);
+
+const blanket = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.1, 1.0), new THREE.MeshLambertMaterial({color:0xc94f3d}));
+blanket.position.set(0, 1.66, -0.15); ponyBody.add(blanket);
+const saddle = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.16, 0.8), new THREE.MeshLambertMaterial({color:0x5a3a22}));
+saddle.position.set(0, 1.78, -0.15); ponyBody.add(saddle);
+
+const shirtMat = new THREE.MeshLambertMaterial({ color:0xff8c1a });
+const pantsMat = new THREE.MeshLambertMaterial({ color:0x35597a });
+
+[-1, 1].forEach(s=>{
+  const thigh = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.5, 0.28), pantsMat);
+  thigh.position.set(s*0.4, -0.02, 0.1);
+  thigh.rotation.z = -s*0.55; thigh.rotation.x = 0.45;
+  rider.add(thigh);
+  const calf = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.5, 0.2), pantsMat);
+  calf.position.set(s*0.58, -0.42, 0.02);
+  rider.add(calf);
+  const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.32), darkMat);
+  shoe.position.set(s*0.58, -0.7, 0.1);
+  rider.add(shoe);
+});
+
+const riderTorso = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.72, 0.34), shirtMat);
+riderTorso.position.y = 0.4; riderTorso.castShadow = true; rider.add(riderTorso);
+const riderHead = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 12), skinMat);
+riderHead.position.y = 0.98; riderHead.castShadow = true; rider.add(riderHead);
+const hatMat = new THREE.MeshLambertMaterial({ color:0xe8c86a });
+const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.05, 14), hatMat);
+brim.position.y = 1.14; rider.add(brim);
+const hatTop = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, 0.22, 12), hatMat);
+hatTop.position.y = 1.26; rider.add(hatTop);
+
+[-1, 1].forEach(s=>{
+  const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.6, 7), shirtMat);
+  arm.position.set(s*0.32, 0.42, 0.26);
+  arm.rotation.x = -1.15; arm.rotation.z = s*0.12;
+  rider.add(arm);
+  const hand = new THREE.Mesh(new THREE.SphereGeometry(0.1, 7, 7), skinMat);
+  hand.position.set(s*0.28, 0.28, 0.54);
+  rider.add(hand);
+});
+
+pony.position.set(0, 0.7, 20);
+scene.add(pony);
+
+// ---------- ▶ [요청 3] 회전하는 당근칼날 ----------
+const bladeHolder = new THREE.Group();   // 플레이어를 따라다니는 그룹
+scene.add(bladeHolder);
+const BLADE_R = 3.0;                     // 회전 반경
+let bladeCount = 2;                      // 칼날 개수 (업그레이드로 증가)
+let bladeSpeed = 5.2;                    // 회전 속도 rad/s (2배 상향, 업그레이드로 증가)
+let bladeAngle = 0;
+const bladeMeshes = [];
+
+function makeCarrot() {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.ConeGeometry(0.32, 1.5, 8),
+    new THREE.MeshLambertMaterial({ color:0xff7f2a, emissive:0x552200 })
+  );
+  body.rotation.x = Math.PI/2;   // 뾰족한 쪽이 +z(진행 방향)를 향하게 눕힘
+  body.castShadow = true;
+  g.add(body);
+  const leafMatC = new THREE.MeshLambertMaterial({ color:0x3fae3f });
+  for (let i=-1;i<=1;i++){
+    const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.45, 5), leafMatC);
+    leaf.position.set(i*0.12, 0.12, -0.85);
+    leaf.rotation.x = -0.5;
+    g.add(leaf);
+  }
+  return g;
+}
+function rebuildBlades() {
+  bladeMeshes.forEach(b=>bladeHolder.remove(b));
+  bladeMeshes.length = 0;
+  for (let i=0;i<bladeCount;i++){
+    const c = makeCarrot();
+    bladeHolder.add(c);
+    bladeMeshes.push(c);
+  }
+}
+rebuildBlades();
+
+// ---------- ▶ [요청 4] 발사되는 감귤 ----------
+const shots = [];
+const shotGeo = new THREE.SphereGeometry(0.4, 10, 10);
+const shotMat = new THREE.MeshLambertMaterial({ color:0xff8c1a, emissive:0x663300 });
+let fireCooldown = 0.45;   // 연사 간격 (업그레이드로 감소)
+let shotCount = 1;         // 한 번에 발사되는 감귤 수 (업그레이드로 증가)
+let fireTimer = 0;
+
+function fireTangerines() {
+  const spread = 0.22; // 여러 발일 때 부채꼴 각도
+  for (let i=0;i<shotCount;i++){
+    const offset = (i - (shotCount-1)/2) * spread;
+    const ang = heading + offset;
+    const m = new THREE.Mesh(shotGeo, shotMat);
+    m.position.set(
+      pony.position.x + Math.sin(ang)*1.4,
+      1.6,
+      pony.position.z + Math.cos(ang)*1.4
+    );
+    scene.add(m);
+    shots.push({ mesh:m, vx:Math.sin(ang)*48, vz:Math.cos(ang)*48, life:1.6 });
+  }
+}
+
+// ---------- ▶ [요청 5,6,9] 돌하르방 좀비 ----------
+const monsters = [];
+const MAX_MONSTERS = 60;
+const eyeMatM = new THREE.MeshLambertMaterial({ color:0xd63a2f, emissive:0x661111 }); // 좀비 눈은 붉게
+
+function makeMonster(x, z) {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshLambertMaterial({ color:0x6e6e72 });  // 개별 재질(피격 플래시용)
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.1, 2.6, 10), mat);
+  body.position.y = 1.3; body.castShadow = true; g.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.85, 10, 10), mat);
+  head.position.y = 3.1; head.scale.y = 1.15; g.add(head);
+  const hat = new THREE.Mesh(new THREE.SphereGeometry(0.75, 10, 6, 0, Math.PI*2, 0, Math.PI/2), mat);
+  hat.position.y = 3.75; g.add(hat);
+  [-0.3, 0.3].forEach(dx=>{
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.16, 6, 6), eyeMatM);
+    eye.position.set(dx, 3.25, 0.72); eye.scale.z = 0.5; g.add(eye);
+  });
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.2, 6, 6), mat);
+  nose.position.set(0, 3.0, 0.82); g.add(nose);
+  g.scale.setScalar(0.8);
+  g.position.set(x, 0.7, z);
+  scene.add(g);
+  monsters.push({
+    mesh:g, mat, x, z,
+    hp:2,                              // ▶ 두 번 맞으면 사망
+    speed: 6.0 + Math.random()*1.6,
+    hitCd:0,        // 칼날 연속 피격 방지
+    flash:0,        // 피격 시 붉게 번쩍
+    wob: Math.random()*Math.PI*2
+  });
+}
+
+// ▶ [요청 9] 맵 외곽 라인에서 스폰, 10초마다 스폰 수 증가
+let wave = 1;
+let waveTimer = 0;
+function spawnWave(n) {
+  for (let i=0;i<n;i++){
+    if (monsters.length >= MAX_MONSTERS) break;
+    const a = Math.random()*Math.PI*2;
+    const r = ISLAND_R - 3;
+    makeMonster(Math.cos(a)*r, Math.sin(a)*r);
+  }
+}
+
+// ---------- ▶ [요청 7] 경험치 조각 ----------
+const gems = [];
+const gemGeo = new THREE.OctahedronGeometry(0.4, 0);
+const gemMat = new THREE.MeshLambertMaterial({ color:0x53e05a, emissive:0x115511 });
+function dropGem(x, z) {
+  const m = new THREE.Mesh(gemGeo, gemMat);
+  m.position.set(x, 1.0, z);
+  scene.add(m);
+  gems.push({ mesh:m, bob:Math.random()*Math.PI*2 });
+}
+
+// ---------- 체력회복 포션 ----------
+const potions = [];
+const potionBodyMat = new THREE.MeshLambertMaterial({ color:0xe84a6f, emissive:0x551122 });
+const potionCapMat = new THREE.MeshLambertMaterial({ color:0x8a5a2a });
+let potionTimer = 8;
+function spawnPotion() {
+  if (potions.length >= 3) return;
+  const p = randomFreePos();
+  const g = new THREE.Group();
+  const bottle = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 10), potionBodyMat);
+  bottle.position.y = 0.4; g.add(bottle);
+  const neckM = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.4, 8), potionBodyMat);
+  neckM.position.y = 0.95; g.add(neckM);
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.14, 8), potionCapMat);
+  cap.position.y = 1.2; g.add(cap);
+  g.position.set(p.x, 0.8, p.z);
+  scene.add(g);
+  potions.push({ mesh:g, bob:Math.random()*Math.PI*2 });
+}
+function randomFreePos() {
+  for (let t=0;t<40;t++){
+    const a = Math.random()*Math.PI*2;
+    const r = 8 + Math.random()*(ISLAND_R-16);
+    const x = Math.cos(a)*r, z = Math.sin(a)*r;
+    let ok = true;
+    for (const o of obstacles) if (Math.hypot(x-o.x, z-o.z) < o.r+2) { ok=false; break; }
+    if (ok) return {x, z};
+  }
+  return { x: 10, z: 10 };
+}
+
+// ---------- ▶ [요청 8] 업그레이드 ----------
+const UPGRADES = [
+  { icon:'🥕', name:'당근칼날 +1',        desc:'회전하는 당근칼날이 하나 늘어납니다',
+    apply:()=>{ bladeCount++; rebuildBlades(); } },
+  { icon:'🌀', name:'칼날 회전속도 UP',    desc:'당근칼날이 더 빠르게 돕니다',
+    apply:()=>{ bladeSpeed *= 1.35; } },
+  { icon:'⚡', name:'귤 연사속도 UP',      desc:'감귤을 더 자주 던질 수 있습니다',
+    apply:()=>{ fireCooldown = Math.max(0.1, fireCooldown*0.78); } },
+  { icon:'🍊', name:'귤 발사 갯수 +1',     desc:'한 번에 던지는 감귤이 하나 늘어납니다',
+    apply:()=>{ shotCount++; } },
+];
+const levelupEl = document.getElementById('levelup');
+const levelCard = document.getElementById('levelCard');
+let frozen = false;      // 레벨업 카드 표시 중 게임 일시정지
+let xp = 0, level = 1, kills = 0;
+
+function levelUp() {
+  xp -= 5;
+  level++;
+  const up = UPGRADES[Math.floor(Math.random()*UPGRADES.length)];  // ▶ 4개 중 랜덤 1개
+  up.apply();
+  levelCard.querySelector('.lv').textContent = 'LEVEL ' + level + '!';
+  levelCard.querySelector('.ic').textContent = up.icon;
+  levelCard.querySelector('.nm').textContent = up.name;
+  levelCard.querySelector('.ds').textContent = up.desc;
+  levelupEl.classList.remove('hidden');
+  frozen = true;
+  setTimeout(()=>{ levelupEl.classList.add('hidden'); frozen = false; }, 1800);
+  updateXpBar();
+}
+function updateXpBar() {
+  document.getElementById('xpBar').style.width = (xp/5*100) + '%';
+  document.getElementById('xpText').textContent = 'EXP ' + xp + ' / 5';
+}
+
+// ---------- 흙먼지 파티클 ----------
+const dustPool = [];
+for (let i=0;i<26;i++){
+  const m = new THREE.Mesh(
+    new THREE.SphereGeometry(0.16, 6, 6),
+    new THREE.MeshLambertMaterial({ color:0xd8c9a3, transparent:true, opacity:0 })
+  );
+  m.visible = false; scene.add(m);
+  dustPool.push({ m, life:0, max:0.6, vx:0, vy:0, vz:0 });
+}
+let dustTimer = 0;
+function spawnDust() {
+  const d = dustPool.find(d=>d.life<=0);
+  if (!d) return;
+  d.life = d.max = 0.45 + Math.random()*0.25;
+  d.m.visible = true;
+  d.m.position.set(
+    pony.position.x - Math.sin(heading)*(0.8+Math.random()*0.6) + (Math.random()-0.5)*0.8,
+    0.75 + Math.random()*0.15,
+    pony.position.z - Math.cos(heading)*(0.8+Math.random()*0.6) + (Math.random()-0.5)*0.8
+  );
+  d.m.scale.setScalar(0.6+Math.random()*0.5);
+  d.vx = (Math.random()-0.5)*0.6; d.vy = 0.8+Math.random()*0.6; d.vz = (Math.random()-0.5)*0.6;
+}
+function updateDust(dt) {
+  dustPool.forEach(d=>{
+    if (d.life <= 0) { d.m.visible = false; return; }
+    d.life -= dt;
+    d.m.position.x += d.vx*dt; d.m.position.y += d.vy*dt; d.m.position.z += d.vz*dt;
+    d.m.scale.multiplyScalar(1 + dt*1.6);
+    d.m.material.opacity = Math.max(0, d.life/d.max)*0.55;
+    if (d.life <= 0) d.m.visible = false;
+  });
+}
+
+// ---------- 갈매기 ----------
+const gulls = [];
+for (let i=0;i<4;i++){
+  const g = new THREE.Group();
+  const b = new THREE.Mesh(new THREE.SphereGeometry(0.35, 8, 8), new THREE.MeshLambertMaterial({color:0xffffff}));
+  b.scale.z = 1.6; g.add(b);
+  const wMat = new THREE.MeshLambertMaterial({ color:0xeeeeee, side:THREE.DoubleSide });
+  const w1 = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.4), wMat); w1.position.x = -0.75; g.add(w1);
+  const w2 = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.4), wMat); w2.position.x = 0.75; g.add(w2);
+  g.userData = { a: Math.random()*Math.PI*2, r: 40+Math.random()*30, h: 14+Math.random()*8, s: 0.2+Math.random()*0.15, w1, w2 };
+  scene.add(g); gulls.push(g);
+}
+
+// ---------- 입력 ----------
+const keys = {};
+addEventListener('keydown', e => {
+  // 입력 폼에 타이핑 중이면 게임 키 입력 무시
+  if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+  const k = e.key.toLowerCase();
+  if (k.startsWith('arrow') || k === ' ') e.preventDefault();
+  keys[k] = true;
+});
+addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+
+// 모바일 조이스틱 + 발사 버튼
+const stick = document.getElementById('stick'), knob = document.getElementById('knob');
+let joy = { x:0, y:0, active:false };
+function handleTouch(e) {
+  const t = e.touches[0];
+  const rect = stick.getBoundingClientRect();
+  let dx = t.clientX - (rect.left+60), dy = t.clientY - (rect.top+60);
+  const d = Math.hypot(dx, dy), max = 45;
+  if (d > max) { dx = dx/d*max; dy = dy/d*max; }
+  knob.style.left = (38+dx)+'px'; knob.style.top = (38+dy)+'px';
+  joy.x = dx/max; joy.y = dy/max; joy.active = true;
+  e.preventDefault();
+}
+stick.addEventListener('touchstart', handleTouch, {passive:false});
+stick.addEventListener('touchmove', handleTouch, {passive:false});
+stick.addEventListener('touchend', () => { joy = {x:0,y:0,active:false}; knob.style.left='38px'; knob.style.top='38px'; });
+
+const fireBtn = document.getElementById('fireBtn');
+let touchFire = false;
+fireBtn.addEventListener('touchstart', e=>{ touchFire = true; e.preventDefault(); }, {passive:false});
+fireBtn.addEventListener('touchend', ()=>{ touchFire = false; });
+
+// ---------- 게임 상태 ----------
+let playing = false;
+let cleared = false;            // 클리어(30마리 처치) 여부
+let hearts = 5;                 // ▶ 총 체력: 하트 5개
+let invincible = 0;             // 피격 후 무적 시간
+let survivedTime = 0;
+let heading = Math.PI;
+let vel = 0;
+let stridePhase = 0;
+let lean = 0;
+
+const hpPill = document.getElementById('hpPill');
+const timePill = document.getElementById('timePill');
+const killPill = document.getElementById('killPill');
+const wavePill = document.getElementById('wavePill');
+const toast = document.getElementById('toast');
+const msg = document.getElementById('msg');
+let toastTimer = null;
+
+function showToast(text) {
+  toast.textContent = text;
+  toast.style.opacity = 1;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> toast.style.opacity = 0, 900);
+}
+function updateHearts() {
+  hpPill.textContent = '❤️'.repeat(hearts) + '🖤'.repeat(5-hearts) || '💀';
+}
+
+function clearEntities() {
+  monsters.forEach(m=>scene.remove(m.mesh)); monsters.length = 0;
+  gems.forEach(g=>scene.remove(g.mesh)); gems.length = 0;
+  shots.forEach(s=>scene.remove(s.mesh)); shots.length = 0;
+  potions.forEach(p=>scene.remove(p.mesh)); potions.length = 0;
+}
+
+document.getElementById('startBtn').addEventListener('click', () => {
+  clearEntities();
+  hearts = 5; invincible = 0; survivedTime = 0;
+  cleared = false; hideClearForm();
+  xp = 0; level = 1; kills = 0;
+  wave = 1; waveTimer = 0; potionTimer = 8;
+  bladeCount = 2; bladeSpeed = 5.2; bladeAngle = 0;
+  fireCooldown = 0.45; shotCount = 1; fireTimer = 0;
+  rebuildBlades();
+  vel = 0; stridePhase = 0; lean = 0;
+  pony.position.set(0, 0.7, 20);
+  ponyBody.position.y = 0; ponyBody.rotation.set(0, 0, 0);
+  heading = Math.PI;
+  updateHearts(); updateXpBar();
+  timePill.textContent = '⏱ 0';
+  killPill.textContent = '🗿 0';
+  wavePill.textContent = '🌊 1';
+  msg.classList.add('hidden');
+  playing = true;
+  spawnWave(3);   // 첫 웨이브
+});
+
+function endGame() {
+  playing = false;
+  msg.classList.remove('hidden');
+  msg.querySelector('h1').textContent = '💀 게임 오버!';
+  let grade = '감귤 새싹 🌱';
+  if (kills >= 20) grade = '하르방 사냥꾼 🏹';
+  if (kills >= 50) grade = '제주 수호자 🛡️';
+  if (kills >= 100) grade = '전설의 감귤기사 👑';
+  msg.querySelector('p').innerHTML =
+    `생존 시간: <b style="font-size:26px">${Math.floor(survivedTime)}초</b><br>` +
+    `처치한 돌하르방: <b style="font-size:26px">${kills}</b>마리 · 레벨 ${level}<br>` +
+    `등급: ${grade}<br><br>다시 도전해볼까요?`;
+  document.getElementById('startBtn').textContent = '다시 하기';
+}
+
+// 장애물·경계 충돌 검사 (반지름 rad짜리 물체가 (x,z)에 있을 수 있는가)
+function collideWorld(x, z, rad) {
+  if (Math.hypot(x, z) > ISLAND_R + 1) return true;
+  for (const o of obstacles) {
+    if (Math.hypot(x-o.x, z-o.z) < o.r + rad) return true;
+  }
+  return false;
+}
+// 장애물 밖으로 밀어내기 (몬스터용 — 벽에 끼지 않게)
+function pushOut(m, rad) {
+  for (const o of obstacles) {
+    const dx = m.x - o.x, dz = m.z - o.z;
+    const d = Math.hypot(dx, dz), min = o.r + rad;
+    if (d < min && d > 0.001) {
+      m.x = o.x + dx/d*min;
+      m.z = o.z + dz/d*min;
+    }
+  }
+  const dc = Math.hypot(m.x, m.z);
+  if (dc > ISLAND_R) { m.x *= ISLAND_R/dc; m.z *= ISLAND_R/dc; }
+}
+
+// ---------- 루프 ----------
+let prev = performance.now();
+
+function animate(now) {
+  requestAnimationFrame(animate);
+  const dt = Math.min((now - prev)/1000, 0.05);
+  prev = now;
+  const t = now/1000;
+
+  // 바다 물결
+  const pos = seaGeo.attributes.position;
+  for (let i=0;i<pos.count;i++){
+    const x = seaBase[i*3], y = seaBase[i*3+1];
+    pos.setZ(i, Math.sin(x*0.08 + t*1.2)*0.5 + Math.cos(y*0.1 + t*0.9)*0.4);
+  }
+  pos.needsUpdate = true;
+
+  clouds.forEach((c,i)=>{ c.position.x += dt*(0.4+i*0.1); if (c.position.x > 130) c.position.x = -130; });
+
+  gulls.forEach(g=>{
+    const u = g.userData;
+    u.a += dt*u.s;
+    g.position.set(Math.cos(u.a)*u.r, u.h + Math.sin(t*2+u.r)*0.5, Math.sin(u.a)*u.r);
+    g.rotation.y = -u.a;
+    const flap = Math.sin(t*8)*0.6;
+    u.w1.rotation.z = flap; u.w2.rotation.z = -flap;
+  });
+
+  if (playing && !frozen) {
+    survivedTime += dt;
+    timePill.textContent = '⏱ ' + Math.floor(survivedTime);
+
+    // ▶ [요청 9] 10초마다 웨이브: 스폰 수가 점점 증가
+    waveTimer += dt;
+    if (waveTimer >= 5) {
+      waveTimer -= 5;
+      wave++;
+      wavePill.textContent = '🌊 ' + wave;
+      spawnWave(2 + wave);        // 웨이브가 오를수록 더 많이!
+      showToast('🌊 웨이브 ' + wave + ' — 돌하르방이 몰려온다!');
+    }
+
+    // 포션 랜덤 스폰
+    potionTimer -= dt;
+    if (potionTimer <= 0) {
+      spawnPotion();
+      potionTimer = 10 + Math.random()*8;
+    }
+
+    // ---------- ▶ [요청 2] 이동 입력 (버그 수정) ----------
+    // 카메라가 항상 남쪽(+z)에서 북쪽(-z)을 바라보므로,
+    // 왼쪽 키 = 화면 왼쪽(-x), 오른쪽 키 = 화면 오른쪽(+x)으로 고정.
+    // 카메라 회전이 없어 좌우가 뒤바뀌는 문제가 사라짐.
+    let ix = 0, iz = 0;
+    if (keys['arrowup']||keys['w']) iz -= 1;
+    if (keys['arrowdown']||keys['s']) iz += 1;
+    if (keys['arrowleft']||keys['a']) ix -= 1;
+    if (keys['arrowright']||keys['d']) ix += 1;
+    if (joy.active) { ix = joy.x; iz = joy.y; }
+
+    const mag = Math.min(Math.hypot(ix, iz), 1);
+    const maxSpeed = 26;
+
+    let turnDiff = 0;
+    if (mag > 0.1) {
+      const target = Math.atan2(ix, iz);   // 월드 = 화면 방향 (카메라 고정)
+      let diff = target - heading;
+      while (diff > Math.PI) diff -= Math.PI*2;
+      while (diff < -Math.PI) diff += Math.PI*2;
+      turnDiff = diff;
+      heading += diff * Math.min(dt*8, 1);
+    }
+
+    const targetSpeed = mag > 0.1 ? maxSpeed*mag : 0;
+    const rate = targetSpeed > vel ? 14 : 18;
+    vel += THREE.MathUtils.clamp(targetSpeed - vel, -rate*dt, rate*dt);
+
+    // 이동 + 장애물 충돌 (x/z축 분리 이동으로 벽 타기 가능)
+    if (vel > 0.05) {
+      const mx = Math.sin(heading)*vel*dt;
+      const mz = Math.cos(heading)*vel*dt;
+      if (!collideWorld(pony.position.x + mx, pony.position.z, 1.0)) pony.position.x += mx;
+      if (!collideWorld(pony.position.x, pony.position.z + mz, 1.0)) pony.position.z += mz;
+    }
+
+    // ---------- 질주 애니메이션 ----------
+    const speedRatio = vel / maxSpeed;
+    stridePhase += vel * dt * 1.1;
+    const gait = Math.min(speedRatio*2.2, 1);
+    legs.forEach((L)=>{
+      const s = Math.sin(stridePhase + L.off);
+      L.hip.rotation.x = s * (0.5 + 0.3*speedRatio) * gait;
+      const bend = Math.max(0, Math.sin(stridePhase + L.off + Math.PI*0.5));
+      L.knee.rotation.x = (L.front ? -0.8 : 0.85) * bend * gait;
+    });
+    const bounce = Math.pow(Math.max(0, Math.sin(stridePhase + 0.4)), 2) * 0.16 * gait;
+    ponyBody.position.y = bounce;
+    ponyBody.rotation.x = Math.sin(stridePhase)*0.07*gait;
+    lean += (THREE.MathUtils.clamp(-turnDiff, -0.9, 0.9)*0.3*speedRatio - lean) * Math.min(dt*6, 1);
+    ponyBody.rotation.z = lean;
+    headGrp.rotation.x = Math.sin(stridePhase - 0.7)*0.13*gait + Math.sin(t*1.3)*0.04*(1-gait);
+    tailGrp.rotation.x = 0.45 + Math.sin(stridePhase - 0.3)*0.3*gait + Math.sin(t*2.2)*0.12*(1-gait);
+    tailGrp.rotation.z = Math.sin(t*3.1)*0.15*(1-gait*0.5);
+    rider.position.y = riderBaseY + bounce*0.4 + Math.max(0, Math.sin(stridePhase + 1.1))*0.05*gait;
+    rider.rotation.x = 0.14*speedRatio + Math.sin(stridePhase + 0.6)*0.05*gait;
+    pony.rotation.y = heading;
+
+    dustTimer -= dt;
+    if (speedRatio > 0.55 && dustTimer <= 0) { spawnDust(); dustTimer = 0.05; }
+
+    // 무적 시간(피격 직후) — 깜빡임
+    if (invincible > 0) {
+      invincible -= dt;
+      pony.visible = Math.floor(t*12) % 2 === 0;
+    } else pony.visible = true;
+
+    // ---------- ▶ [요청 4] Z키(또는 🍊버튼)로 감귤 발사 ----------
+    fireTimer -= dt;
+    if ((keys['z'] || touchFire) && fireTimer <= 0) {
+      fireTangerines();
+      fireTimer = fireCooldown;
+    }
+
+    // 발사체 이동
+    for (let i=shots.length-1;i>=0;i--){
+      const s = shots[i];
+      s.mesh.position.x += s.vx*dt;
+      s.mesh.position.z += s.vz*dt;
+      s.mesh.rotation.x += dt*12;
+      s.life -= dt;
+      let dead = s.life <= 0;
+      // 장애물에 부딪히면 소멸
+      if (!dead) {
+        for (const o of obstacles) {
+          if (Math.hypot(s.mesh.position.x-o.x, s.mesh.position.z-o.z) < o.r) { dead = true; break; }
+        }
+      }
+      // 몬스터 명중
+      if (!dead) {
+        for (const m of monsters) {
+          if (m.hp <= 0) continue;
+          if (Math.hypot(s.mesh.position.x-m.x, s.mesh.position.z-m.z) < 1.3) {
+            hurtMonster(m, s.vx*0.06, s.vz*0.06);
+            dead = true;
+            break;
+          }
+        }
+      }
+      if (dead) { scene.remove(s.mesh); shots.splice(i,1); }
+    }
+
+    // ---------- ▶ [요청 3,6] 당근칼날 회전 + 타격 ----------
+    bladeAngle += bladeSpeed * dt;
+    bladeHolder.position.set(pony.position.x, pony.position.y, pony.position.z);
+    const bladePos = [];
+    bladeMeshes.forEach((b, i)=>{
+      const a = bladeAngle + i*(Math.PI*2/bladeMeshes.length);
+      const bx = Math.cos(a)*BLADE_R, bz = Math.sin(a)*BLADE_R;
+      b.position.set(bx, 1.3, bz);
+      b.rotation.y = -a;                 // 진행 방향(접선)을 향하도록
+      bladePos.push([pony.position.x+bx, pony.position.z+bz]);
+    });
+
+    // ---------- ▶ [요청 5] 몬스터 AI: 추적 + 접촉 대미지 ----------
+    for (const m of monsters) {
+      if (m.hp <= 0) continue;
+      m.hitCd -= dt;
+
+      // 플레이어를 향해 이동
+      const dx = pony.position.x - m.x, dz = pony.position.z - m.z;
+      const d = Math.hypot(dx, dz);
+      if (d > 0.5) {
+        m.x += dx/d * m.speed * dt;
+        m.z += dz/d * m.speed * dt;
+      }
+      // 몬스터끼리 겹침 방지
+      for (const m2 of monsters) {
+        if (m2 === m || m2.hp <= 0) continue;
+        const sx = m.x-m2.x, sz = m.z-m2.z;
+        const sd = Math.hypot(sx, sz);
+        if (sd < 1.6 && sd > 0.001) {
+          m.x += sx/sd * (1.6-sd) * 0.5;
+          m.z += sz/sd * (1.6-sd) * 0.5;
+        }
+      }
+      pushOut(m, 0.9);   // 장애물에서 밀어내기
+
+      // 좀비 걸음 뒤뚱거림
+      m.wob += dt * m.speed * 1.5;
+      m.mesh.position.set(m.x, 0.7 + Math.abs(Math.sin(m.wob))*0.15, m.z);
+      m.mesh.rotation.y = Math.atan2(dx, dz);
+      m.mesh.rotation.z = Math.sin(m.wob)*0.1;
+
+      // 피격 플래시
+      if (m.flash > 0) {
+        m.flash -= dt;
+        m.mat.color.setHex(0xd65a4a);
+      } else {
+        m.mat.color.setHex(m.hp === 1 ? 0x8a8a90 : 0x6e6e72);  // 1대 맞으면 살짝 창백
+      }
+
+      // ▶ 칼날 타격 (몬스터별 쿨다운으로 1회씩)
+      if (m.hitCd <= 0) {
+        for (const [bx, bz] of bladePos) {
+          if (Math.hypot(bx-m.x, bz-m.z) < 1.4) {
+            const kx = (m.x - pony.position.x), kz = (m.z - pony.position.z);
+            const kd = Math.hypot(kx, kz) || 1;
+            hurtMonster(m, kx/kd*1.5, kz/kd*1.5);
+            m.hitCd = 0.5;
+            break;
+          }
+        }
+      }
+
+      // ▶ 플레이어 접촉 대미지
+      if (invincible <= 0 && Math.hypot(m.x-pony.position.x, m.z-pony.position.z) < 1.7) {
+        hearts--;
+        updateHearts();
+        invincible = 1.2;
+        showToast('🗿 아야! 하트 -1');
+        // 살짝 밀려남
+        const kx = pony.position.x - m.x, kz = pony.position.z - m.z;
+        const kd = Math.hypot(kx, kz) || 1;
+        const nx = pony.position.x + kx/kd*2.5, nz = pony.position.z + kz/kd*2.5;
+        if (!collideWorld(nx, nz, 1.0)) { pony.position.x = nx; pony.position.z = nz; }
+        if (hearts <= 0) { updateHearts(); endGame(); }
+      }
+    }
+
+    // 죽은 몬스터 제거 (사망 연출: 가라앉음)
+    for (let i=monsters.length-1;i>=0;i--){
+      const m = monsters[i];
+      if (m.hp <= 0) {
+        m.mesh.position.y -= dt*3;
+        m.mesh.rotation.x += dt*2;
+        if (m.mesh.position.y < -2.5) {
+          scene.remove(m.mesh);
+          monsters.splice(i,1);
+        }
+      }
+    }
+
+    // ---------- ▶ [요청 7] 경험치 획득 ----------
+    for (let i=gems.length-1;i>=0;i--){
+      const g = gems[i];
+      g.mesh.rotation.y += dt*3;
+      g.mesh.position.y = 1.0 + Math.sin(t*3 + g.bob)*0.15;
+      const dx = pony.position.x - g.mesh.position.x;
+      const dz = pony.position.z - g.mesh.position.z;
+      const d = Math.hypot(dx, dz);
+      if (d < 5) {  // 자석처럼 끌려옴
+        g.mesh.position.x += dx/d * 10 * dt;
+        g.mesh.position.z += dz/d * 10 * dt;
+      }
+      if (d < 1.5) {
+        scene.remove(g.mesh);
+        gems.splice(i,1);
+        xp++;
+        showToast('💚 경험치 +1');
+        updateXpBar();
+        if (xp >= 5) levelUp();   // ▶ 경험치 5개마다 업그레이드
+      }
+    }
+
+    // 포션 획득
+    for (let i=potions.length-1;i>=0;i--){
+      const p = potions[i];
+      p.mesh.rotation.y += dt*1.5;
+      p.mesh.position.y = 0.8 + Math.sin(t*2.5 + p.bob)*0.15;
+      if (Math.hypot(pony.position.x-p.mesh.position.x, pony.position.z-p.mesh.position.z) < 1.6) {
+        scene.remove(p.mesh);
+        potions.splice(i,1);
+        if (hearts < 5) {
+          hearts++;
+          updateHearts();
+          showToast('🧪 체력 회복! +❤️');
+        } else showToast('🧪 이미 체력이 가득!');
+      }
+    }
+  }
+
+  updateDust(dt);
+
+  // ---------- 카메라: 회전 없이 뒤·위에서 고정 추적 (좌우 반전 방지 핵심) ----------
+  const camTarget = new THREE.Vector3(
+    pony.position.x,
+    pony.position.y + 24,
+    pony.position.z + 22
+  );
+  if (!playing && !msg.classList.contains('hidden') && survivedTime === 0) {
+    camera.position.set(Math.sin(t*0.15)*80, 40, Math.cos(t*0.15)*80);
+    camera.lookAt(0, 8, 0);
+  } else {
+    camera.position.lerp(camTarget, playing ? 0.1 : 0.03);
+    camera.lookAt(pony.position.x, pony.position.y + 1, pony.position.z);
+  }
+
+  renderer.render(scene, camera);
+}
+
+// 몬스터 피격 처리 (▶ [요청 6] 2회 피격 시 사망)
+function hurtMonster(m, kx, kz) {
+  m.hp--;
+  m.flash = 0.15;
+  m.x += kx; m.z += kz;   // 넉백
+  pushOut(m, 0.9);
+  if (m.hp <= 0) {
+    kills++;
+    killPill.textContent = '🗿 ' + kills;
+    dropGem(m.x, m.z);    // ▶ [요청 7] 경험치 드롭
+    if (kills >= CLEAR_KILLS && !cleared) clearGame();   // 30마리 처치 → 클리어
+  }
+}
+
+// ---------- 클리어: 이름/전화번호 입력 ----------
+function clearGame() {
+  cleared = true;
+  playing = false;                 // 게임 정지
+  showToast('🎉 돌하르방 30마리 처치! 클리어!');
+  showClearForm();
+}
+
+/* ===== 클리어 폼 제어 + 스프레드시트 기록 ===== */
+const clearForm = document.getElementById('clearForm');
+const cfName    = document.getElementById('cfName');
+const cfPhone   = document.getElementById('cfPhone');
+const cfSubmit  = document.getElementById('cfSubmit');
+const cfMsg     = document.getElementById('cfMsg');
+let recorded = false;
+
+function showClearForm() {
+  recorded = false;
+  cfName.value = ''; cfPhone.value = ''; cfMsg.textContent = '';
+  cfSubmit.disabled = false; cfSubmit.textContent = '기록하기';
+  cfName.disabled = false; cfPhone.disabled = false;
+  clearForm.style.display = 'flex';
+  setTimeout(() => cfName.focus(), 40);
+}
+function hideClearForm() {
+  clearForm.style.display = 'none';
+  if (document.activeElement) document.activeElement.blur();
+}
+function submitClearRecord() {
+  if (recorded) return;
+  const name  = cfName.value.trim();
+  const phone = cfPhone.value.trim();
+  if (!name || !phone) { cfMsg.style.color = '#c94f3d'; cfMsg.textContent = '이름과 전화번호를 모두 입력하세요.'; return; }
+
+  recorded = true;
+  cfSubmit.disabled = true; cfName.disabled = true; cfPhone.disabled = true;
+
+  if (!SHEET_URL || SHEET_URL.indexOf('http') !== 0) {
+    cfMsg.style.color = '#d97a12'; cfMsg.textContent = '(SHEET_URL 미설정 - 기록 전송 안 함)';
+    finishClearForm(); return;
+  }
+
+  cfMsg.style.color = '#3b8ecf'; cfMsg.textContent = '기록 전송 중...';
+  try {
+    fetch(SHEET_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ name, phone, game: GAME_NAME })
+    })
+    .then(() => { cfMsg.style.color = '#57b34a'; cfMsg.textContent = '기록되었습니다!'; finishClearForm(); })
+    .catch(() => { cfMsg.style.color = '#c94f3d'; cfMsg.textContent = '전송 실패 - 네트워크를 확인하세요.'; finishClearForm(); });
+  } catch (e) { cfMsg.style.color = '#c94f3d'; cfMsg.textContent = '전송 오류'; finishClearForm(); }
+}
+function finishClearForm() {
+  setTimeout(() => { hideClearForm(); showClearResult(); }, 1400);
+}
+function showClearResult() {
+  msg.classList.remove('hidden');
+  msg.querySelector('h1').textContent = '🎉 클리어!';
+  msg.querySelector('p').innerHTML =
+    `돌하르방 <b style="font-size:26px">${CLEAR_KILLS}</b>마리를 물리쳤어요!<br>` +
+    `생존 시간: <b style="font-size:22px">${Math.floor(survivedTime)}초</b> · 레벨 ${level}<br><br>` +
+    `제주를 지켜줘서 고마워요! 다시 도전해볼까요?`;
+  document.getElementById('startBtn').textContent = '다시 하기';
+}
+cfSubmit.addEventListener('click', submitClearRecord);
+[cfName, cfPhone].forEach(inp => {
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submitClearRecord(); } });
+});
+
+requestAnimationFrame(animate);
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>감귤 픽셀아트 & 웹 컬러링북 🖍️</title>
+<link rel="stylesheet" href="../assets/style.css" />
+<style>
+  .stage { max-width: 860px; margin: 0 auto; }
+  .tabs { display:flex; gap:10px; justify-content:center; margin-bottom:18px; }
+  .tab { border:2px solid #ffe0bf; background:#fff; cursor:pointer; font-family:inherit; font-weight:800; font-size:15px; padding:10px 22px; border-radius:999px; color:var(--ink-soft); }
+  .tab.on { background:linear-gradient(135deg,var(--tangerine),var(--orange-deep)); color:#fff; border-color:transparent; }
+  .board { display:flex; gap:22px; flex-wrap:wrap; justify-content:center; align-items:flex-start; }
+  .canvas-holder { background:#fff; border-radius:20px; padding:14px; box-shadow:var(--shadow); }
+  canvas { display:block; border-radius:12px; cursor:crosshair; touch-action:none; background:#fff; image-rendering:pixelated; }
+  .tools { width:230px; }
+  .palette { display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin:10px 0; }
+  .sw { aspect-ratio:1; border-radius:8px; cursor:pointer; border:3px solid transparent; box-shadow:inset 0 0 0 1px rgba(0,0,0,.08); }
+  .sw.on { border-color:var(--ink); transform:scale(1.05); }
+  .tool-label { font-weight:800; color:var(--orange-deep); font-size:14px; margin:14px 0 4px; }
+  .mode-btns { display:flex; gap:8px; }
+  .mode-btns button { flex:1; border:2px solid #ffe0bf; background:#fff; cursor:pointer; font-family:inherit; font-weight:700; font-size:13px; padding:9px; border-radius:12px; }
+  .mode-btns button.on { background:#fff3e2; border-color:var(--orange); color:var(--orange-deep); }
+  .sizerow { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--ink-soft); }
+  .sizerow input{ flex:1; accent-color:var(--orange); }
+  .row2 { display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
+  .row2 .btn { flex:1; padding:11px; font-size:14px; }
+  .templates { display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
+  .templates button { font-size:12px; padding:7px 12px; }
+  .hint { color:var(--ink-soft); font-size:13px; text-align:center; margin-top:10px; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="logo" href="../index.html"><span class="dot"></span>감귤 체험존</a>
+    <a class="back" href="../index.html">← 메인으로</a>
+  </div>
+
+  <header class="page-head">
+    <div class="emoji">🖍️</div>
+    <h1>감귤 픽셀아트 & 웹 컬러링북</h1>
+    <p>도안에 색을 칠하거나, 픽셀을 찍어 나만의 감귤 캐릭터를 완성하고 저장하세요!</p>
+  </header>
+
+  <main class="wrap stage">
+    <div class="tabs">
+      <button class="tab on" id="tabColor" onclick="switchMode('color')">🎨 컬러링북</button>
+      <button class="tab" id="tabPixel" onclick="switchMode('pixel')">🟧 픽셀아트</button>
+    </div>
+
+    <div class="card">
+      <div class="board">
+        <div class="canvas-holder">
+          <canvas id="cv" width="420" height="420"></canvas>
+        </div>
+
+        <div class="tools">
+          <div class="tool-label">🎨 색상 팔레트</div>
+          <div class="palette" id="palette"></div>
+
+          <div id="colorTools">
+            <div class="tool-label">✏️ 도구</div>
+            <div class="mode-btns">
+              <button id="brushBtn" class="on" onclick="setTool('brush')">🖌️ 붓</button>
+              <button id="fillBtn" onclick="setTool('fill')">🪣 채우기</button>
+              <button id="eraseBtn" onclick="setTool('erase')">🧽 지우개</button>
+            </div>
+            <div class="tool-label">브러시 크기</div>
+            <div class="sizerow"><input type="range" id="size" min="2" max="40" value="14"><span id="sizeVal">14</span></div>
+            <div class="tool-label">🖼️ 도안 선택</div>
+            <div class="templates">
+              <button class="btn ghost" onclick="loadTemplate('tangerine')">귤</button>
+              <button class="btn ghost" onclick="loadTemplate('tree')">귤나무</button>
+              <button class="btn ghost" onclick="loadTemplate('char')">감귤이</button>
+            </div>
+          </div>
+
+          <div id="pixelTools" class="hidden">
+            <div class="tool-label">✏️ 도구</div>
+            <div class="mode-btns">
+              <button id="pxDraw" class="on" onclick="setTool('brush')">⬛ 찍기</button>
+              <button id="pxErase" onclick="setTool('erase')">⬜ 지우기</button>
+            </div>
+            <div class="tool-label">격자 크기</div>
+            <div class="sizerow"><input type="range" id="grid" min="8" max="32" value="16" step="1"><span id="gridVal">16×16</span></div>
+            <p class="hint" style="margin-top:8px">칸을 클릭·드래그해서 도트를 찍어보세요!</p>
+          </div>
+
+          <div class="row2">
+            <button class="btn ghost" onclick="clearCanvas()">🗑️ 초기화</button>
+            <button class="btn leaf" onclick="saveCanvas()">💾 저장</button>
+          </div>
+        </div>
+      </div>
+      <p class="hint">완성한 작품을 저장해서 SNS에 자랑해보세요! #제주감귤체험존 🍊</p>
+    </div>
+  </main>
+
+  <footer class="site">🍊 제주 감귤 체험존 · 감귤 픽셀아트 & 컬러링북</footer>
+
+  <script src="../assets/common.js"></script>
+  <script>
+    const cv = document.getElementById('cv');
+    const c = cv.getContext('2d');
+    const SIZE = 420;
+    let mode = 'color';       // 'color' | 'pixel'
+    let tool = 'brush';       // brush | fill | erase
+    let color = '#ff8c1a';
+    let brush = 14;
+    let grid = 16;
+    let drawing = false;
+
+    const colors = ['#ff8c1a','#ffb347','#ffd98a','#f2740c','#e2670a','#c94f00',
+                    '#4caf50','#388e3c','#8bc34a','#ffffff','#ffe0a3','#795548',
+                    '#e53935','#ff7043','#5c3a1e','#333333','#7986cb','#26a69a'];
+    const pal = document.getElementById('palette');
+    colors.forEach((col,i)=>{
+      const s=document.createElement('div'); s.className='sw'+(i===0?' on':''); s.style.background=col;
+      s.onclick=()=>{ color=col; if(tool==='erase') setTool('brush'); [...pal.children].forEach(x=>x.classList.remove('on')); s.classList.add('on'); };
+      pal.appendChild(s);
+    });
+
+    document.getElementById('size').oninput = e=>{ brush=+e.target.value; document.getElementById('sizeVal').textContent=brush; };
+    document.getElementById('grid').oninput = e=>{ grid=+e.target.value; document.getElementById('gridVal').textContent=`${grid}×${grid}`; initPixel(); };
+
+    function setTool(t){
+      tool=t;
+      ['brushBtn','fillBtn','eraseBtn','pxDraw','pxErase'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('on'); });
+      if(mode==='color'){
+        ({brush:'brushBtn',fill:'fillBtn',erase:'eraseBtn'}[t]) && document.getElementById({brush:'brushBtn',fill:'fillBtn',erase:'eraseBtn'}[t]).classList.add('on');
+      } else {
+        (t==='erase'?document.getElementById('pxErase'):document.getElementById('pxDraw')).classList.add('on');
+      }
+    }
+
+    function switchMode(m){
+      mode=m; tool='brush';
+      document.getElementById('tabColor').classList.toggle('on', m==='color');
+      document.getElementById('tabPixel').classList.toggle('on', m==='pixel');
+      document.getElementById('colorTools').classList.toggle('hidden', m!=='color');
+      document.getElementById('pixelTools').classList.toggle('hidden', m!=='pixel');
+      if(m==='color'){ cv.style.imageRendering='auto'; loadTemplate('tangerine'); setTool('brush'); }
+      else { cv.style.imageRendering='pixelated'; initPixel(); setTool('brush'); }
+    }
+
+    // ===== 좌표 =====
+    function pos(e){
+      const r=cv.getBoundingClientRect();
+      const px = (e.touches?e.touches[0].clientX:e.clientX)-r.left;
+      const py = (e.touches?e.touches[0].clientY:e.clientY)-r.top;
+      return { x: px*(SIZE/r.width), y: py*(SIZE/r.height) };
+    }
+
+    // ===== 컬러링 =====
+    function paintAt(x,y){
+      if(tool==='erase'){ c.globalCompositeOperation='source-over'; c.fillStyle='#fff'; }
+      else { c.globalCompositeOperation='source-over'; c.fillStyle=color; }
+      c.beginPath(); c.arc(x,y,brush/2,0,Math.PI*2); c.fill();
+    }
+
+    // 플러드필
+    function floodFill(x,y){
+      x=Math.floor(x); y=Math.floor(y);
+      const img=c.getImageData(0,0,SIZE,SIZE); const d=img.data;
+      const idx=(x,y)=>(y*SIZE+x)*4;
+      const start=idx(x,y);
+      const tr=d[start],tg=d[start+1],tb=d[start+2],ta=d[start+3];
+      const nc=hexToRgb(color);
+      // 라인(검정)엔 안 칠하도록 유사도 검사
+      if(Math.abs(tr-nc.r)<8 && Math.abs(tg-nc.g)<8 && Math.abs(tb-nc.b)<8) return;
+      const match=(i)=> Math.abs(d[i]-tr)<40 && Math.abs(d[i+1]-tg)<40 && Math.abs(d[i+2]-tb)<40 && Math.abs(d[i+3]-ta)<40;
+      const stack=[[x,y]];
+      while(stack.length){
+        const [cxp,cyp]=stack.pop();
+        if(cxp<0||cyp<0||cxp>=SIZE||cyp>=SIZE) continue;
+        const i=idx(cxp,cyp);
+        if(!match(i)) continue;
+        d[i]=nc.r; d[i+1]=nc.g; d[i+2]=nc.b; d[i+3]=255;
+        stack.push([cxp+1,cyp],[cxp-1,cyp],[cxp,cyp+1],[cxp,cyp-1]);
+      }
+      c.putImageData(img,0,0);
+      redrawLines();
+    }
+
+    let currentTemplate='tangerine';
+    function redrawLines(){ drawTemplateLines(currentTemplate); }
+
+    function hexToRgb(h){ const n=parseInt(h.slice(1),16); return {r:(n>>16)&255,g:(n>>8)&255,b:n&255}; }
+
+    // ===== 픽셀 =====
+    let pxData=[];
+    function initPixel(){
+      pxData = Array.from({length:grid*grid}, ()=>null);
+      renderPixel();
+    }
+    function renderPixel(){
+      c.clearRect(0,0,SIZE,SIZE); c.fillStyle='#fff'; c.fillRect(0,0,SIZE,SIZE);
+      const cell=SIZE/grid;
+      for(let i=0;i<pxData.length;i++){
+        const gx=i%grid, gy=Math.floor(i/grid);
+        if(pxData[i]){ c.fillStyle=pxData[i]; c.fillRect(gx*cell,gy*cell,cell,cell); }
+      }
+      // 격자선
+      c.strokeStyle='rgba(0,0,0,.08)'; c.lineWidth=1;
+      for(let i=0;i<=grid;i++){ c.beginPath(); c.moveTo(i*cell,0); c.lineTo(i*cell,SIZE); c.stroke(); c.beginPath(); c.moveTo(0,i*cell); c.lineTo(SIZE,i*cell); c.stroke(); }
+    }
+    function pixelAt(x,y){
+      const cell=SIZE/grid;
+      const gx=Math.floor(x/cell), gy=Math.floor(y/cell);
+      if(gx<0||gy<0||gx>=grid||gy>=grid) return;
+      pxData[gy*grid+gx] = (tool==='erase')? null : color;
+      renderPixel();
+    }
+
+    // ===== 이벤트 =====
+    function down(e){ e.preventDefault(); drawing=true; act(e); }
+    function move(e){ if(!drawing) return; e.preventDefault(); act(e); }
+    function up(){ drawing=false; }
+    function act(e){
+      const {x,y}=pos(e);
+      if(mode==='pixel'){ pixelAt(x,y); return; }
+      if(tool==='fill'){ floodFill(x,y); drawing=false; return; }
+      paintAt(x,y);
+    }
+    cv.addEventListener('mousedown',down); cv.addEventListener('mousemove',move);
+    window.addEventListener('mouseup',up);
+    cv.addEventListener('touchstart',down,{passive:false}); cv.addEventListener('touchmove',move,{passive:false});
+    window.addEventListener('touchend',up);
+
+    // ===== 도안 =====
+    function loadTemplate(name){
+      currentTemplate=name;
+      c.globalCompositeOperation='source-over';
+      c.fillStyle='#fff'; c.fillRect(0,0,SIZE,SIZE);
+      drawTemplateLines(name);
+    }
+    function drawTemplateLines(name){
+      c.save();
+      c.strokeStyle='#333'; c.lineWidth=4; c.lineJoin='round'; c.lineCap='round';
+      const S=SIZE;
+      if(name==='tangerine'){
+        c.beginPath(); c.arc(S/2,S*0.58,S*0.32,0,Math.PI*2); c.stroke();
+        // 잎
+        c.beginPath(); c.ellipse(S/2,S*0.24,S*0.12,S*0.05,-0.5,0,Math.PI*2); c.stroke();
+        c.beginPath(); c.moveTo(S/2,S*0.24); c.lineTo(S/2,S*0.28); c.stroke();
+        // 속살 안내선
+        c.lineWidth=2;
+        for(let i=0;i<8;i++){ const a=i/8*Math.PI*2; c.beginPath(); c.moveTo(S/2,S*0.58); c.lineTo(S/2+Math.cos(a)*S*0.32,S*0.58+Math.sin(a)*S*0.32); c.stroke(); }
+      } else if(name==='tree'){
+        c.beginPath(); c.moveTo(S*0.44,S*0.9); c.lineTo(S*0.44,S*0.55); c.lineTo(S*0.56,S*0.55); c.lineTo(S*0.56,S*0.9); c.stroke();
+        c.beginPath(); c.arc(S*0.5,S*0.4,S*0.26,0,Math.PI*2); c.stroke();
+        for(const [x,y] of [[0.42,0.35],[0.58,0.38],[0.5,0.5],[0.4,0.48],[0.6,0.5]]){ c.beginPath(); c.arc(S*x,S*y,S*0.05,0,Math.PI*2); c.stroke(); }
+      } else if(name==='char'){
+        // 감귤 캐릭터
+        c.beginPath(); c.arc(S/2,S*0.55,S*0.3,0,Math.PI*2); c.stroke();
+        c.beginPath(); c.ellipse(S*0.6,S*0.28,S*0.08,S*0.04,-0.4,0,Math.PI*2); c.stroke();
+        // 눈
+        c.beginPath(); c.arc(S*0.42,S*0.52,S*0.03,0,Math.PI*2); c.stroke();
+        c.beginPath(); c.arc(S*0.58,S*0.52,S*0.03,0,Math.PI*2); c.stroke();
+        // 볼
+        c.beginPath(); c.arc(S*0.36,S*0.6,S*0.04,0,Math.PI*2); c.stroke();
+        c.beginPath(); c.arc(S*0.64,S*0.6,S*0.04,0,Math.PI*2); c.stroke();
+        // 입
+        c.beginPath(); c.arc(S/2,S*0.6,S*0.06,0.15*Math.PI,0.85*Math.PI); c.stroke();
+      }
+      c.restore();
+    }
+
+    function clearCanvas(){
+      if(mode==='pixel'){ initPixel(); }
+      else { loadTemplate(currentTemplate); }
+      toast('초기화했어요!');
+    }
+    function saveCanvas(){
+      // 저장 시 픽셀모드 격자선 제거 버전
+      if(mode==='pixel'){
+        const tmp=document.createElement('canvas'); tmp.width=SIZE; tmp.height=SIZE;
+        const t=tmp.getContext('2d'); t.fillStyle='#fff'; t.fillRect(0,0,SIZE,SIZE);
+        const cell=SIZE/grid;
+        for(let i=0;i<pxData.length;i++){ if(pxData[i]){ t.fillStyle=pxData[i]; t.fillRect((i%grid)*cell,Math.floor(i/grid)*cell,cell,cell); } }
+        downloadDataURL(tmp.toDataURL('image/png'),'감귤픽셀아트_'+Date.now()+'.png');
+      } else {
+        downloadDataURL(cv.toDataURL('image/png'),'감귤컬러링_'+Date.now()+'.png');
+      }
+    }
+
+    // 초기
+    loadTemplate('tangerine');
+  </script>
+</body>
+</html>

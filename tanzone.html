@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>제주 감귤 체험존 🍊 | 감귤 페스티벌</title>
+<link rel="stylesheet" href="assets/style.css" />
+<style>
+  .hero {
+    text-align: center;
+    padding: 70px 20px 30px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero h1 {
+    font-size: clamp(32px, 6vw, 60px);
+    font-weight: 900;
+    margin: 0;
+    color: var(--orange-deep);
+    letter-spacing: -1px;
+  }
+  .hero .sub {
+    font-size: clamp(15px, 2.5vw, 20px);
+    color: var(--ink-soft);
+    margin-top: 14px;
+  }
+  .hero .big-emoji { font-size: 70px; animation: bob 3s ease-in-out infinite; }
+  @keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 22px;
+    margin: 30px 0 20px;
+  }
+  .tile {
+    background: #fff;
+    border-radius: var(--radius-lg);
+    padding: 26px;
+    text-decoration: none;
+    color: var(--ink);
+    box-shadow: var(--shadow-soft);
+    border: 2px solid transparent;
+    transition: transform .2s, box-shadow .2s, border-color .2s;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+  .tile::before {
+    content: "";
+    position: absolute;
+    right: -30px; top: -30px;
+    width: 90px; height: 90px;
+    background: radial-gradient(circle at 30% 30%, var(--orange-soft), var(--orange-deep));
+    border-radius: 50%;
+    opacity: .12;
+    transition: .3s;
+  }
+  .tile:hover { transform: translateY(-6px); box-shadow: var(--shadow); border-color: var(--orange-soft); }
+  .tile:hover::before { opacity: .22; transform: scale(1.15); }
+  .tile .num {
+    font-size: 13px; font-weight: 800; color: var(--orange);
+    letter-spacing: 1px;
+  }
+  .tile .ico { font-size: 40px; }
+  .tile h3 { margin: 4px 0 0; font-size: 19px; font-weight: 800; }
+  .tile p { margin: 0; font-size: 13.5px; color: var(--ink-soft); line-height: 1.5; }
+  .tile .go { margin-top: auto; font-weight: 800; color: var(--orange-deep); font-size: 14px; padding-top: 8px; }
+
+  .floaties { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: -1; }
+  .floaties span {
+    position: absolute; font-size: 28px; opacity: .25;
+    animation: float 12s linear infinite;
+  }
+  @keyframes float { from{transform:translateY(110vh) rotate(0)} to{transform:translateY(-15vh) rotate(360deg)} }
+</style>
+</head>
+<body>
+  <div class="floaties" id="floaties"></div>
+
+  <header class="hero">
+    <div class="big-emoji">🍊</div>
+    <h1>제주 감귤 체험존</h1>
+    <p class="sub">놀고, 만들고, 나누는 8가지 감귤 디지털 놀이터에 오신 걸 환영합니다!</p>
+  </header>
+
+  <main class="wrap">
+    <div class="grid">
+      <a class="tile" href="pages/1-mbti-test.html">
+        <div class="num">01 · 심리테스트</div>
+        <div class="ico">🧡</div>
+        <h3>나만의 감귤 품종 매칭 테스트</h3>
+        <p>MBTI 스타일 질문으로 당신과 꼭 닮은 감귤 품종을 찾아드려요. 결과는 SNS로 공유!</p>
+        <span class="go">테스트 시작하기 →</span>
+      </a>
+
+      <a class="tile" href="pages/2-ocarina.html">
+        <div class="num">02 · 힐링 사운드</div>
+        <div class="ico">🎵</div>
+        <h3>감귤밭 힐링 사운드 & 가상 연주</h3>
+        <p>키보드와 마우스로 오카리나를 연주하고, 감귤밭 새소리·바람소리로 힐링하세요.</p>
+        <span class="go">연주하러 가기 →</span>
+      </a>
+
+      <a class="tile" href="pages/3-face-filter.html">
+        <div class="num">03 · AR 필터</div>
+        <div class="ico">📸</div>
+        <h3>웹캠 감귤 페이스 필터</h3>
+        <p>웹캠으로 얼굴을 인식해 귤 모자를 씌우고 볼을 주황빛으로! 캡처해서 저장하세요.</p>
+        <span class="go">필터 켜기 →</span>
+      </a>
+
+      <a class="tile" href="pages/4-ai-art.html">
+        <div class="num">04 · AI 아트</div>
+        <div class="ico">🎨</div>
+        <h3>AI 감귤 아트 콘테스트</h3>
+        <p>주제어를 입력해 감귤 아트를 생성하고 갤러리에 등록! 실시간 투표로 우승작을 가려요.</p>
+        <span class="go">아트 만들기 →</span>
+      </a>
+
+      <a class="tile" href="pages/5-coloring.html">
+        <div class="num">05 · 컬러링북</div>
+        <div class="ico">🖍️</div>
+        <h3>감귤 픽셀아트 & 웹 컬러링북</h3>
+        <p>도안에 색을 칠하거나 픽셀을 찍어 나만의 감귤 캐릭터를 완성하고 저장하세요.</p>
+        <span class="go">색칠하러 가기 →</span>
+      </a>
+
+      <a class="tile" href="pages/6-guestbook.html">
+        <div class="num">06 · 디지털 방명록</div>
+        <div class="ico">🌳</div>
+        <h3>귤나무에 소원 달기</h3>
+        <p>축하 메시지와 소원을 남기면 디지털 귤나무에 주황 귤이 실시간으로 매달려요.</p>
+        <span class="go">소원 남기기 →</span>
+      </a>
+
+      <a class="tile" href="pages/7-goods.html">
+        <div class="num">07 · 굿즈 디자인</div>
+        <div class="ico">🛍️</div>
+        <h3>나만의 감귤 굿즈 디자인</h3>
+        <p>스티커·일러스트를 드래그해 에코백·엽서를 디자인! 우수작은 실물 제작 이벤트로.</p>
+        <span class="go">디자인하러 가기 →</span>
+      </a>
+
+      <a class="tile" href="pages/8-quiz.html">
+        <div class="num">08 · 감귤 능력고사</div>
+        <div class="ico">🏆</div>
+        <h3>온라인 감귤 능력고사</h3>
+        <p>제한시간 안에 감귤 상식 문제를 풀고 고득점에 도전! 감귤 한 박스가 걸린 퀴즈 대회.</p>
+        <span class="go">시험 응시하기 →</span>
+      </a>
+    </div>
+  </main>
+
+  <footer class="site">
+    🍊 제주 감귤 체험존 · 모든 콘텐츠는 브라우저에서 바로 즐길 수 있어요<br/>
+    <small>© 2026 Jeju Tangerine Festival · Demo</small>
+  </footer>
+
+  <script>
+    // 배경 감귤 이모지 떠다니기
+    const box = document.getElementById('floaties');
+    const emojis = ['🍊','🍃','🍊','🧡','🍊'];
+    for (let i = 0; i < 14; i++) {
+      const s = document.createElement('span');
+      s.textContent = emojis[i % emojis.length];
+      s.style.left = Math.random() * 100 + 'vw';
+      s.style.animationDuration = (8 + Math.random() * 10) + 's';
+      s.style.animationDelay = (-Math.random() * 12) + 's';
+      s.style.fontSize = (18 + Math.random() * 26) + 'px';
+      box.appendChild(s);
+    }
+  </script>
+</body>
+</html>

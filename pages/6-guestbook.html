@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>귤나무에 소원 달기 🌳</title>
+<link rel="stylesheet" href="../assets/style.css" />
+<style>
+  .stage { max-width: 960px; margin: 0 auto; }
+  .tree-wrap {
+    position: relative; width:100%; aspect-ratio: 1/0.82; max-height:620px;
+    background: linear-gradient(180deg,#cdeafe 0%,#e8f7ff 55%,#d5f0c8 100%);
+    border-radius: 24px; overflow:hidden; box-shadow: var(--shadow);
+  }
+  #treeSvg { position:absolute; inset:0; width:100%; height:100%; }
+  .tangerine-node {
+    position:absolute; transform:translate(-50%,-50%);
+    width:40px; height:40px; cursor:pointer; z-index:3;
+    animation: drop .6s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes drop { 0%{ transform:translate(-50%,-160%) scale(.3); opacity:0 } 100%{ transform:translate(-50%,-50%) scale(1); opacity:1 } }
+  .tangerine-node .ball {
+    width:100%; height:100%; border-radius:50%;
+    background: radial-gradient(circle at 34% 30%, #ffd98a, #ff8c1a 65%, #e2670a);
+    box-shadow: 0 3px 8px rgba(180,80,0,.4), inset -3px -4px 8px rgba(150,60,0,.4);
+    position:relative; transition: transform .15s;
+  }
+  .tangerine-node .ball::after{ content:''; position:absolute; top:-4px; left:52%; width:8px;height:8px; background:#4caf50; border-radius:0 60% 60% 60%; transform:translateX(-50%) rotate(20deg); }
+  .tangerine-node:hover .ball{ transform:scale(1.2); }
+  .tangerine-node.sway { animation: sway 3s ease-in-out infinite; }
+  @keyframes sway { 0%,100%{ margin-left:0 } 50%{ margin-left:4px } }
+
+  .bubble {
+    position:absolute; bottom:120%; left:50%; transform:translateX(-50%);
+    background:#fff; color:var(--ink); padding:10px 14px; border-radius:14px;
+    box-shadow: var(--shadow); font-size:13px; width:max-content; max-width:220px;
+    opacity:0; pointer-events:none; transition:.2s; z-index:9; text-align:left;
+  }
+  .bubble b{ color:var(--orange-deep); display:block; margin-bottom:3px; font-size:12px;}
+  .tangerine-node:hover .bubble{ opacity:1; transform:translateX(-50%) translateY(-4px); }
+  .bubble::after{ content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:7px solid transparent; border-top-color:#fff; }
+
+  .form-card { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
+  .field { flex:1; min-width:160px; }
+  .field label{ display:block; font-weight:800; color:var(--orange-deep); font-size:13px; margin-bottom:5px; }
+  .field input, .field textarea{ width:100%; font-family:inherit; font-size:15px; padding:12px 14px; border:2px solid #ffe0bf; border-radius:12px; outline:none; resize:none; }
+  .field input:focus, .field textarea:focus{ border-color:var(--orange); }
+  .counter { text-align:right; font-size:12px; color:var(--ink-soft); }
+  .stat { text-align:center; color:var(--ink-soft); font-size:14px; margin-top:10px; }
+  .stat b{ color:var(--orange-deep); font-size:18px; }
+  .recent { margin-top:20px; }
+  .recent h3{ color:var(--orange-deep); }
+  .msg-list{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; }
+  .msg { background:#fff; border-radius:14px; padding:14px; box-shadow:var(--shadow-soft); font-size:14px; }
+  .msg .who{ font-weight:800; color:var(--orange-deep); font-size:13px; margin-bottom:4px; }
+  .msg .when{ font-size:11px; color:var(--ink-soft); margin-top:8px; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="logo" href="../index.html"><span class="dot"></span>감귤 체험존</a>
+    <a class="back" href="../index.html">← 메인으로</a>
+  </div>
+
+  <header class="page-head">
+    <div class="emoji">🌳</div>
+    <h1>귤나무에 소원 달기</h1>
+    <p>축하 메시지나 소원을 남기면 디지털 귤나무에 주황빛 귤이 실시간으로 매달려요!</p>
+  </header>
+
+  <main class="wrap stage">
+    <div class="tree-wrap" id="treeWrap">
+      <svg id="treeSvg" viewBox="0 0 1000 820" preserveAspectRatio="xMidYMid slice">
+        <!-- 땅 -->
+        <ellipse cx="500" cy="800" rx="520" ry="70" fill="#bfe39a"/>
+        <!-- 줄기 -->
+        <path d="M470 800 Q480 560 500 470 Q520 560 530 800 Z" fill="#8d5a2b"/>
+        <path d="M500 520 Q430 470 380 430" stroke="#8d5a2b" stroke-width="26" fill="none" stroke-linecap="round"/>
+        <path d="M500 500 Q580 460 640 420" stroke="#8d5a2b" stroke-width="26" fill="none" stroke-linecap="round"/>
+        <path d="M500 480 Q500 400 500 360" stroke="#8d5a2b" stroke-width="30" fill="none" stroke-linecap="round"/>
+        <!-- 잎 덩어리 -->
+        <g fill="#5cb85c">
+          <circle cx="500" cy="300" r="170"/>
+          <circle cx="360" cy="360" r="130"/>
+          <circle cx="640" cy="360" r="130"/>
+          <circle cx="430" cy="240" r="120"/>
+          <circle cx="580" cy="240" r="120"/>
+        </g>
+        <g fill="#4ca64c" opacity="0.5">
+          <circle cx="500" cy="280" r="140"/>
+          <circle cx="400" cy="340" r="90"/>
+          <circle cx="610" cy="340" r="90"/>
+        </g>
+      </svg>
+      <!-- 귤들이 여기에 붙음 -->
+    </div>
+    <p class="stat">🍊 지금까지 <b id="count">0</b>개의 소원이 귤나무에 매달렸어요! <span style="font-size:12px">(귤에 마우스를 올리면 메시지가 보여요)</span></p>
+
+    <div class="card mt">
+      <h2 style="margin-top:0;color:var(--orange-deep)">✍️ 소원 & 축하 메시지 남기기</h2>
+      <div class="form-card">
+        <div class="field" style="flex:0 0 180px">
+          <label>닉네임</label>
+          <input id="name" placeholder="이름 또는 별명" maxlength="10" />
+        </div>
+        <div class="field" style="flex:1 1 100%">
+          <label>메시지 (소원/축하)</label>
+          <textarea id="text" rows="2" placeholder="예: 감귤 페스티벌 대박나세요! 우리 가족 모두 건강하게 해주세요 🍊" maxlength="60"></textarea>
+          <div class="counter"><span id="cnt">0</span>/60</div>
+        </div>
+        <button class="btn" style="flex:0 0 auto" onclick="hang()">🍊 귤 달기</button>
+      </div>
+    </div>
+
+    <div class="recent card mt">
+      <h3 style="margin-top:0">📜 최근 소원들</h3>
+      <div class="msg-list" id="msgList"></div>
+    </div>
+  </main>
+
+  <footer class="site">🍊 제주 감귤 체험존 · 디지털 방명록 · 소원은 브라우저에 저장됩니다</footer>
+
+  <script src="../assets/common.js"></script>
+  <script>
+    const KEY='gamgyul_wishes';
+    const wrap=document.getElementById('treeWrap');
+    const textEl=document.getElementById('text');
+    textEl.oninput=()=>document.getElementById('cnt').textContent=textEl.value.length;
+
+    // 나뭇잎 영역 안의 귤 위치 후보 (퍼센트)
+    const spots=[
+      [50,32],[38,38],[62,38],[43,26],[57,26],[50,20],[33,44],[67,44],
+      [46,45],[54,45],[40,52],[60,52],[50,50],[36,32],[64,32],[30,38],
+      [70,38],[45,58],[55,58],[50,62],[42,34],[58,34],[35,50],[65,50],
+      [48,38],[52,30],[44,50],[56,50],[38,46],[62,46]
+    ];
+
+    function load(){ try{ return JSON.parse(localStorage.getItem(KEY)||'[]'); }catch(e){ return []; } }
+    function save(l){ localStorage.setItem(KEY, JSON.stringify(l)); }
+
+    function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    function timeAgo(t){ const s=(Date.now()-t)/1000; if(s<60) return '방금 전'; if(s<3600) return Math.floor(s/60)+'분 전'; if(s<86400) return Math.floor(s/3600)+'시간 전'; return Math.floor(s/86400)+'일 전'; }
+
+    function addNode(w, i, animate){
+      const spot=spots[i%spots.length];
+      // 같은 자리 겹침 방지용 소폭 랜덤
+      const jx=(((w.id||0)%7)-3), jy=(((w.id||0)%5)-2);
+      const node=document.createElement('div');
+      node.className='tangerine-node'+(animate?'':' sway');
+      node.style.left=(spot[0]+jx)+'%';
+      node.style.top=(spot[1]+jy)+'%';
+      if(!animate) node.style.animation='none';
+      node.style.animationDelay=(Math.random()*2)+'s';
+      node.innerHTML=`<div class="ball"></div>
+        <div class="bubble"><b>${escapeHtml(w.name||'익명')}</b>${escapeHtml(w.text)}</div>`;
+      wrap.appendChild(node);
+      if(animate){ setTimeout(()=>node.classList.add('sway'), 700); }
+    }
+
+    function renderAll(){
+      // 기존 노드 제거
+      wrap.querySelectorAll('.tangerine-node').forEach(n=>n.remove());
+      const list=load();
+      list.forEach((w,i)=>addNode(w,i,false));
+      document.getElementById('count').textContent=list.length;
+      renderMsgs(list);
+    }
+
+    function renderMsgs(list){
+      const recent=list.slice(-12).reverse();
+      document.getElementById('msgList').innerHTML = recent.length? recent.map(w=>`
+        <div class="msg">
+          <div class="who">🍊 ${escapeHtml(w.name||'익명')}</div>
+          <div>${escapeHtml(w.text)}</div>
+          <div class="when">${timeAgo(w.t)}</div>
+        </div>`).join('') : '<p style="color:var(--ink-soft)">아직 소원이 없어요. 첫 소원을 남겨보세요!</p>';
+    }
+
+    function hang(){
+      const name=document.getElementById('name').value.trim();
+      const text=textEl.value.trim();
+      if(!text){ toast('메시지를 입력해주세요! 🍊'); textEl.focus(); return; }
+      const list=load();
+      const w={ id:Date.now(), name:name||'익명', text, t:Date.now() };
+      list.push(w); save(list);
+      addNode(w, list.length-1, true);
+      document.getElementById('count').textContent=list.length;
+      renderMsgs(list);
+      textEl.value=''; document.getElementById('cnt').textContent='0';
+      toast('소원이 귤나무에 매달렸어요! 🍊✨');
+    }
+
+    renderAll();
+    // 실시간 동기화(다른 탭에서 소원 달면 반영)
+    window.addEventListener('storage',(e)=>{ if(e.key===KEY) renderAll(); });
+  </script>
+</body>
+</html>

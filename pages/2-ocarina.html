@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>감귤밭 힐링 사운드 & 가상 오카리나 🎵</title>
+<link rel="stylesheet" href="../assets/style.css" />
+<style>
+  .stage { max-width: 760px; margin: 0 auto; }
+  .ocarina {
+    position: relative;
+    background: radial-gradient(circle at 40% 30%, #ffd9a3, #e88a1d);
+    border-radius: 50% 50% 48% 48% / 60% 60% 40% 40%;
+    width: min(420px, 82vw); height: min(300px, 60vw);
+    margin: 10px auto 24px;
+    box-shadow: inset -10px -14px 30px rgba(150,70,0,.35), var(--shadow);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ocarina .leaf {
+    position:absolute; top:-14px; left:50%; transform:translateX(-50%) rotate(15deg);
+    font-size:38px;
+  }
+  .holes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 22px; }
+  .hole {
+    width: 54px; height: 54px; border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, #6b3b12, #2e1806);
+    box-shadow: inset 0 3px 6px rgba(0,0,0,.6);
+    display:flex; align-items:center; justify-content:center;
+    color:#ffcf8f; font-weight:800; font-size:13px; cursor:pointer;
+    transition: transform .08s, box-shadow .1s; user-select:none;
+    border: 2px solid rgba(255,255,255,.08);
+  }
+  .hole small { opacity:.75; font-size:11px; }
+  .hole.active { transform: scale(.9); box-shadow: inset 0 0 14px #ffb43c, 0 0 18px #ffb43c; background: radial-gradient(circle at 40% 35%, #ffb347, #d97b12); color:#3a2b1a; }
+  .keyname { display:block; font-size:11px; }
+  .controls { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin-top:10px; }
+  .amb {
+    display:flex; align-items:center; gap:10px; background:#fff; border-radius:16px;
+    padding:12px 18px; box-shadow: var(--shadow-soft); font-weight:700; font-size:14px;
+  }
+  .amb input[type=range]{ accent-color: var(--orange); }
+  .toggle {
+    border:none; cursor:pointer; font-family:inherit; font-weight:800; font-size:14px;
+    padding:8px 16px; border-radius:999px; background:#eee; color:#888; transition:.2s;
+  }
+  .toggle.on { background: linear-gradient(135deg,#66bb6a,#388e3c); color:#fff; }
+  .hint { text-align:center; color:var(--ink-soft); font-size:14px; margin-top:10px; }
+  .songs { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:8px; }
+  .songs button { font-size:13px; padding:8px 14px; }
+  .visual { display:flex; gap:4px; justify-content:center; align-items:flex-end; height:40px; margin:6px 0; }
+  .visual i { width:6px; background:var(--orange-soft); border-radius:3px; height:6px; transition:height .1s; display:block; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="logo" href="../index.html"><span class="dot"></span>감귤 체험존</a>
+    <a class="back" href="../index.html">← 메인으로</a>
+  </div>
+
+  <header class="page-head">
+    <div class="emoji">🎵</div>
+    <h1>감귤밭 힐링 사운드 & 가상 오카리나</h1>
+    <p>키보드(A S D F G H J K) 또는 클릭으로 연주하세요. 감귤밭 자연의 소리와 함께 🍃</p>
+  </header>
+
+  <main class="wrap stage">
+    <div class="card">
+      <div class="visual" id="visual"></div>
+      <div class="ocarina">
+        <span class="leaf">🍃</span>
+        <div class="holes" id="holes"></div>
+      </div>
+
+      <div class="hint">💡 키보드 <b>A S D F G H J K</b> 또는 구멍을 <b>클릭</b>해서 연주해요</div>
+
+      <div class="songs">
+        <span style="align-self:center;font-weight:800;color:var(--ink-soft);font-size:13px">🎼 따라치기:</span>
+        <button class="btn ghost" onclick="playSong('school')">학교종</button>
+        <button class="btn ghost" onclick="playSong('twinkle')">반짝반짝</button>
+        <button class="btn ghost" onclick="playSong('nabi')">나비야</button>
+      </div>
+
+      <div class="controls mt">
+        <div class="amb">
+          🐦 새소리
+          <button class="toggle" id="tBird" onclick="toggleAmb('bird', this)">OFF</button>
+        </div>
+        <div class="amb">
+          🌬️ 바람소리
+          <button class="toggle" id="tWind" onclick="toggleAmb('wind', this)">OFF</button>
+        </div>
+        <div class="amb">
+          🦗 풀벌레
+          <button class="toggle" id="tBug" onclick="toggleAmb('bug', this)">OFF</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site">🍊 제주 감귤 체험존 · 힐링 사운드 & 가상 연주</footer>
+
+  <script src="../assets/common.js"></script>
+  <script>
+    let ac;
+    function ctx(){ if(!ac) ac = new (window.AudioContext||window.webkitAudioContext)(); if(ac.state==='suspended') ac.resume(); return ac; }
+
+    // 도레미파솔라시도
+    const notes = [
+      { key:'a', name:'도', freq:523.25 },
+      { key:'s', name:'레', freq:587.33 },
+      { key:'d', name:'미', freq:659.25 },
+      { key:'f', name:'파', freq:698.46 },
+      { key:'g', name:'솔', freq:783.99 },
+      { key:'h', name:'라', freq:880.00 },
+      { key:'j', name:'시', freq:987.77 },
+      { key:'k', name:'도♯', freq:1046.50 },
+    ];
+    const byKey = {};
+
+    const holesEl = document.getElementById('holes');
+    notes.forEach((n, i) => {
+      const d = document.createElement('div');
+      d.className = 'hole';
+      d.innerHTML = `${n.name}<span class="keyname">${n.key.toUpperCase()}</span>`;
+      d.dataset.i = i;
+      d.addEventListener('mousedown', () => hit(i));
+      d.addEventListener('touchstart', (e)=>{ e.preventDefault(); hit(i); }, {passive:false});
+      holesEl.appendChild(d);
+      byKey[n.key] = { el:d, note:n };
+    });
+
+    // 오카리나 톤: 부드러운 사인 + 약한 배음
+    function playTone(freq, dur=0.6){
+      const c = ctx();
+      const t = c.currentTime;
+      const g = c.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.28, t+0.04);
+      g.gain.exponentialRampToValueAtTime(0.001, t+dur);
+      const o1 = c.createOscillator(); o1.type='sine'; o1.frequency.value=freq;
+      const o2 = c.createOscillator(); o2.type='triangle'; o2.frequency.value=freq*2;
+      const g2 = c.createGain(); g2.gain.value=0.08;
+      // 약간의 비브라토
+      const lfo = c.createOscillator(); lfo.frequency.value=5;
+      const lfoG = c.createGain(); lfoG.gain.value=3;
+      lfo.connect(lfoG); lfoG.connect(o1.frequency);
+      o1.connect(g); o2.connect(g2); g2.connect(g);
+      g.connect(c.destination);
+      o1.start(t); o2.start(t); lfo.start(t);
+      o1.stop(t+dur); o2.stop(t+dur); lfo.stop(t+dur);
+    }
+
+    function hit(i){
+      const n = notes[i];
+      playTone(n.freq);
+      const el = holesEl.children[i];
+      el.classList.add('active');
+      setTimeout(()=>el.classList.remove('active'), 220);
+      pulseVisual();
+    }
+
+    document.addEventListener('keydown', (e)=>{
+      if (e.repeat) return;
+      const k = e.key.toLowerCase();
+      if (byKey[k]) hit(+byKey[k].el.dataset.i);
+    });
+
+    // 곡 데이터 (음이름 인덱스: 도0 레1 미2 파3 솔4 라5 시6)
+    const songs = {
+      school: [4,4,5,5,4,4,2,4,4,2,2,1, 4,4,5,5,4,4,2,4,2,1,2,0],
+      twinkle:[0,0,4,4,5,5,4, 3,3,2,2,1,1,0, 4,4,3,3,2,2,1, 4,4,3,3,2,2,1],
+      nabi:   [4,2,2,3,1,1,0,1,2,3,4,4,4, 4,2,2,3,1,1,0,2,4,4,2,2],
+    };
+    function playSong(name){
+      const seq = songs[name]; if(!seq) return;
+      seq.forEach((n, i)=> setTimeout(()=> hit(n), i*380));
+      toast('🎼 따라 쳐보세요!');
+    }
+
+    // 시각화
+    const visual = document.getElementById('visual');
+    for(let i=0;i<24;i++){ const b=document.createElement('i'); visual.appendChild(b); }
+    function pulseVisual(){
+      [...visual.children].forEach(b=>{
+        b.style.height = (6 + Math.random()*34) + 'px';
+      });
+      clearTimeout(visual._t);
+      visual._t = setTimeout(()=>[...visual.children].forEach(b=>b.style.height='6px'), 200);
+    }
+
+    // ===== 배경 자연 소리 (합성) =====
+    const amb = {};
+    function toggleAmb(type, btn){
+      if (amb[type]) { amb[type].stop(); delete amb[type]; btn.classList.remove('on'); btn.textContent='OFF'; return; }
+      amb[type] = makeAmbient(type); btn.classList.add('on'); btn.textContent='ON';
+    }
+
+    function makeAmbient(type){
+      const c = ctx();
+      const master = c.createGain(); master.gain.value = 0.0; master.connect(c.destination);
+      master.gain.linearRampToValueAtTime(0.5, c.currentTime+0.8);
+      let timers = [];
+
+      if (type==='wind'){
+        // 필터링된 노이즈로 바람소리
+        const buf = noiseBuffer(c, 4);
+        const src = c.createBufferSource(); src.buffer=buf; src.loop=true;
+        const filt = c.createBiquadFilter(); filt.type='lowpass'; filt.frequency.value=500;
+        const g = c.createGain(); g.gain.value=0.35;
+        src.connect(filt); filt.connect(g); g.connect(master);
+        // 바람 세기 흔들림
+        const lfo = c.createOscillator(); lfo.frequency.value=0.15;
+        const lfoG = c.createGain(); lfoG.gain.value=300;
+        lfo.connect(lfoG); lfoG.connect(filt.frequency);
+        src.start(); lfo.start();
+        return { stop(){ try{master.gain.linearRampToValueAtTime(0,c.currentTime+0.3); src.stop(c.currentTime+0.35); lfo.stop(c.currentTime+0.35);}catch(e){} } };
+      }
+
+      if (type==='bird'){
+        // 랜덤 지저귐
+        function chirp(){
+          const t=c.currentTime;
+          const o=c.createOscillator(); o.type='sine';
+          const g=c.createGain();
+          const base=1800+Math.random()*1400;
+          o.frequency.setValueAtTime(base,t);
+          o.frequency.linearRampToValueAtTime(base*1.4,t+0.08);
+          o.frequency.linearRampToValueAtTime(base*0.9,t+0.16);
+          g.gain.setValueAtTime(0,t);
+          g.gain.linearRampToValueAtTime(0.18,t+0.02);
+          g.gain.exponentialRampToValueAtTime(0.001,t+0.2);
+          o.connect(g); g.connect(master); o.start(t); o.stop(t+0.22);
+        }
+        function loop(){
+          const n=1+Math.floor(Math.random()*3);
+          for(let i=0;i<n;i++) setTimeout(chirp, i*140);
+          timers.push(setTimeout(loop, 700+Math.random()*2200));
+        }
+        loop();
+        return { stop(){ timers.forEach(clearTimeout); master.gain.linearRampToValueAtTime(0,c.currentTime+0.3);} };
+      }
+
+      if (type==='bug'){
+        // 풀벌레 트릴
+        const o=c.createOscillator(); o.type='sawtooth'; o.frequency.value=4200;
+        const filt=c.createBiquadFilter(); filt.type='bandpass'; filt.frequency.value=4200; filt.Q.value=8;
+        const g=c.createGain(); g.gain.value=0;
+        // 빠른 트레몰로
+        const trem=c.createOscillator(); trem.type='square'; trem.frequency.value=18;
+        const tremG=c.createGain(); tremG.gain.value=0.08;
+        trem.connect(tremG); tremG.connect(g.gain);
+        o.connect(filt); filt.connect(g); g.connect(master);
+        g.gain.value=0.08;
+        o.start(); trem.start();
+        return { stop(){ try{master.gain.linearRampToValueAtTime(0,c.currentTime+0.3); o.stop(c.currentTime+0.35); trem.stop(c.currentTime+0.35);}catch(e){} } };
+      }
+    }
+
+    function noiseBuffer(c, sec){
+      const b = c.createBuffer(1, c.sampleRate*sec, c.sampleRate);
+      const d = b.getChannelData(0);
+      for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+      return b;
+    }
+  </script>
+</body>
+</html>
